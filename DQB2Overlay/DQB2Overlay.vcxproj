@@ -80,8 +80,9 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="blueprint.cpp" />
     <ClCompile Include="dllmain.cpp" />
+    <ClCompile Include="dqb2\blueprint.cpp" />
+    <ClCompile Include="dqb2\dqb2.cpp" />
     <ClCompile Include="imgui\imgui.cpp" />
     <ClCompile Include="imgui\imgui_demo.cpp" />
     <ClCompile Include="imgui\imgui_draw.cpp" />
@@ -101,7 +102,8 @@
     <ResourceCompile Include="kiero\minhook\dll_resources\MinHook.rc" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="blueprint.hpp" />
+    <ClInclude Include="dqb2\blueprint.hpp" />
+    <ClInclude Include="dqb2\dqb2.hpp" />
     <ClInclude Include="imgui\imconfig.h" />
     <ClInclude Include="imgui\imgui.h" />
     <ClInclude Include="imgui\imgui_impl_dx11.h" />

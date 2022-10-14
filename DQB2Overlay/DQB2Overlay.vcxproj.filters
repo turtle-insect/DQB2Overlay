@@ -19,6 +19,9 @@
     <Filter Include="ソース ファイル\imgui">
       <UniqueIdentifier>{3b4a4c16-e4b1-4805-ae2b-f489c0f937f0}</UniqueIdentifier>
     </Filter>
+    <Filter Include="ソース ファイル\dqb2">
+      <UniqueIdentifier>{91759d82-b071-4534-9b81-c2969848de65}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="dllmain.cpp">
@@ -66,8 +69,11 @@
     <ClCompile Include="input.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
-    <ClCompile Include="blueprint.cpp">
-      <Filter>ソース ファイル</Filter>
+    <ClCompile Include="dqb2\blueprint.cpp">
+      <Filter>ソース ファイル\dqb2</Filter>
+    </ClCompile>
+    <ClCompile Include="dqb2\dqb2.cpp">
+      <Filter>ソース ファイル\dqb2</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -130,8 +136,11 @@
     <ClInclude Include="input.hpp">
       <Filter>ソース ファイル</Filter>
     </ClInclude>
-    <ClInclude Include="blueprint.hpp">
-      <Filter>ソース ファイル</Filter>
+    <ClInclude Include="dqb2\blueprint.hpp">
+      <Filter>ソース ファイル\dqb2</Filter>
+    </ClInclude>
+    <ClInclude Include="dqb2\dqb2.hpp">
+      <Filter>ソース ファイル\dqb2</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
