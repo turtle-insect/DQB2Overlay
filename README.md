@@ -14,7 +14,7 @@ Steam Dragon Quest Builders 2 Overlay Menu
 * Windows 10(64bit)
 * [Visual Studio 2022](https://visualstudio.microsoft.com/)
 
-# How to Use
+# Description
 ## Set up only once for the first time
 1. launch Steam
 1. right-click on Builders 2 from the [Library]
