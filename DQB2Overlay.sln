@@ -5,6 +5,8 @@ VisualStudioVersion = 17.3.32922.545
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "DQB2Overlay", "DQB2Overlay\DQB2Overlay.vcxproj", "{F7D84049-1C62-4332-8E5B-14C292AB1D03}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "DLLInjection", "DLLInjection\DLLInjection.vcxproj", "{063F228A-71A8-4A80-B84C-C0F249CCBB92}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -15,6 +17,10 @@ Global
 		{F7D84049-1C62-4332-8E5B-14C292AB1D03}.Debug|x64.Build.0 = Debug|x64
 		{F7D84049-1C62-4332-8E5B-14C292AB1D03}.Release|x64.ActiveCfg = Release|x64
 		{F7D84049-1C62-4332-8E5B-14C292AB1D03}.Release|x64.Build.0 = Release|x64
+		{063F228A-71A8-4A80-B84C-C0F249CCBB92}.Debug|x64.ActiveCfg = Debug|x64
+		{063F228A-71A8-4A80-B84C-C0F249CCBB92}.Debug|x64.Build.0 = Debug|x64
+		{063F228A-71A8-4A80-B84C-C0F249CCBB92}.Release|x64.ActiveCfg = Release|x64
+		{063F228A-71A8-4A80-B84C-C0F249CCBB92}.Release|x64.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

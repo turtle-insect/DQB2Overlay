@@ -1,9 +1,9 @@
 #include <vector>
 #include <map>
 #include <fstream>
-#include <sstream>
 #include <iostream>
 #include <string>
+#include "Text.hpp"
 #include "blueprint.hpp"
 
 // https://github.com/turtle-insect/DQB2ProcessEditor/blob/main/DQB2ProcessEditor/Info.cs
@@ -13,9 +13,9 @@ typedef struct
 	int id;
 	std::string name;
 	bool link;
-}Item;
+}ItemInfo;
 
-typedef std::vector<Item> vecItem;
+typedef std::vector<ItemInfo> vecItem;
 typedef std::map<int, std::map<int, std::string>*> mapBlock;
 
 static vecItem s_items;
@@ -25,35 +25,6 @@ typedef void (*append_func)(std::vector<std::string>);
 
 void AppendBlock(std::vector<std::string> words);
 void AppendItem(std::vector<std::string> words);
-
-int s2i(std::string& word)
-{
-	auto ss = std::istringstream(word);
-	int value;
-	ss >> value;
-	return value;
-}
-
-std::vector<std::string> split(std::string& text, char delimiter)
-{
-	std::vector<std::string> words;
-	if (text.length() == 0) return words;
-
-	size_t offset = 0;
-	for (;;)
-	{
-		size_t index = text.find(delimiter, offset);
-		if (index == std::string::npos)
-		{
-			words.push_back(text.substr(offset));
-			break;
-		}
-		words.push_back(text.substr(offset, index - offset));
-		offset = index + 1;
-	}
-
-	return words;
-}
 
 void ReadInfoText(std::string filename, append_func func)
 {
@@ -74,13 +45,13 @@ void AppendItem(std::vector<std::string> words)
 {
 	if (words.size() < 5) return;
 
-	Item item;
-	item.id = s2i(words[0]);
-	item.name = words[1];
-	item.link = words[4] == "TRUE";
-	if (item.id == 0) return;
+	ItemInfo info;
+	info.id = s2i(words[0]);
+	info.name = words[1];
+	info.link = words[4] == "TRUE";
+	if (info.id == 0) return;
 
-	s_items.push_back(item);
+	s_items.push_back(info);
 }
 
 void AppendBlock(std::vector<std::string> words)
@@ -139,26 +110,26 @@ std::vector<int> Search(int category, int id)
 
 	for (size_t index = 0; index < s_items.size(); index++)
 	{
-		Item& item = s_items[index];
-		if (item.name == name)
+		ItemInfo& info = s_items[index];
+		if (info.name == name)
 		{
-			if (item.link)
+			if (info.link)
 			{
 				item_ids.clear();
-				item_ids.push_back(item.id);
+				item_ids.push_back(info.id);
 				break;
 			}
 
-			item_ids.push_back(item.id);
+			item_ids.push_back(info.id);
 		}
 	}
 
 	return item_ids;
 }
 
-std::vector<ItemInfo> CreateBluePrintItem(uintptr_t address)
+std::vector<Item> CreateBluePrintItem(uintptr_t address)
 {
-	std::vector<ItemInfo> item_infos;
+	std::vector<Item> items;
 	size_t size = *(short*)(address + 0x30000);
 	size *= *(short*)(address + 0x30002);
 	size *= *(short*)(address + 0x30004);
@@ -195,15 +166,15 @@ std::vector<ItemInfo> CreateBluePrintItem(uintptr_t address)
 			auto item_ids = Search(*category_ite, id);
 			for (auto itemid_ite = item_ids.begin(); itemid_ite != item_ids.end(); ++itemid_ite)
 			{
-				ItemInfo info;
-				info.id = *itemid_ite;
-				info.count = block_ite->second;
-				item_infos.push_back(info);
+				Item item;
+				item.id = *itemid_ite;
+				item.count = block_ite->second;
+				items.push_back(item);
 			}
 
 			if (item_ids.size() > 0) break;
 		}
 	}
 
-	return item_infos;
+	return items;
 }

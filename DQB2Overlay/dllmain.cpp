@@ -110,7 +110,7 @@ DWORD WINAPI MainThread(LPVOID lpReserved)
 	kiero::unbind(8);
 	CleanupDevice();
 	kiero::shutdown();
-	return TRUE;
+	return 0;
 }
 
 BOOL APIENTRY DllMain(HMODULE hModule,

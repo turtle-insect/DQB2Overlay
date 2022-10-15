@@ -1,8 +1,9 @@
 #include <Windows.h>
-#include "blueprint.hpp"
 #include "../imgui/imgui.h"
 #include "../imgui/imgui_impl_win32.h"
 #include "../imgui/imgui_impl_dx11.h"
+#include "TemplateItem.hpp"
+#include "blueprint.hpp"
 #include "dqb2.hpp"
 
 uintptr_t GetBaseAddress()
@@ -39,6 +40,31 @@ uintptr_t GetBaseAddress()
 
 }
 
+void ItemTemplateItem()
+{
+	static int current_index = 0;
+	
+	ImGui::Text("Template Item");
+	ImGui::Combo("   ", &current_index, GetTemplateItemNames(), GetTemplateItemCount());
+	ImVec2 size = { 75, 25 };
+	if (ImGui::Button("Import", size))
+	{
+		std::vector<TemplateItem>& templateItems = GetTemplateItems();
+		uintptr_t address = GetBaseAddress() + 0xB88650;
+		auto items = templateItems[current_index].items;
+		auto item_ite = items.begin();
+		for (int index = 0; item_ite != items.end() && index < 15; index++)
+		{
+			short id = *(short*)(address + index * 4);
+			if (id != 0) continue;
+
+			*(short*)(address + index * 4) = item_ite->id;
+			*(short*)(address + index * 4 + 2) = item_ite->count;
+			++item_ite;
+		}
+	}
+}
+
 void GeneralBuilderHeart()
 {
 	ImGui::Text("Builder Heart");
@@ -55,9 +81,26 @@ void GeneralTimeofDay()
 	ImGui::SliderFloat("  ", timer, 0, 1200);
 }
 
-void CreateBluePrintButton(int index, const char* const name)
+void BluePrintClearButton(int index, const char* const name)
 {
-	ImVec2 size = { 70, 20 };
+	ImVec2 size = { 75, 25 };
+	if (ImGui::Button(name, size))
+	{
+		uintptr_t address = GetBaseAddress();
+		address += 0x167030 + index * 0x30008;
+
+		char* p = (char*)address;
+		for (int index = 0; index < 0x30008; index++)
+		{
+			*p = 0;
+			p++;
+		}
+	}
+}
+
+void BluePrintImportButton(int index, const char* const name)
+{
+	ImVec2 size = { 75, 25 };
 	if (ImGui::Button(name, size))
 	{
 		uintptr_t address = GetBaseAddress();
@@ -85,32 +128,52 @@ void CreateBluePrintButton(int index, const char* const name)
 	}
 }
 
-void GeneralBluePrint()
+void BluePrintMenu()
 {
-	ImGui::Text("BluePrint");
-	ImGui::PushStyleColor(ImGuiCol_Button, (ImVec4)ImColor::HSV(0 / 7.0f, 0.6f, 0.6f));
-	CreateBluePrintButton(4, "red");
-	ImGui::PopStyleColor(1);
-	ImGui::SameLine();
-	ImGui::PushStyleColor(ImGuiCol_Button, (ImVec4)ImColor::HSV(4 / 7.0f, 0.6f, 0.6f));
-	CreateBluePrintButton(5, "blue");
-	ImGui::PopStyleColor(1);
-	ImGui::SameLine();
-	ImGui::PushStyleColor(ImGuiCol_Button, (ImVec4)ImColor::HSV(2 / 7.0f, 0.6f, 0.6f));
-	CreateBluePrintButton(6, "green");
-	ImGui::PopStyleColor(1);
-	ImGui::SameLine();
-	ImGui::PushStyleColor(ImGuiCol_Button, (ImVec4)ImColor::HSV(1 / 7.0f, 0.6f, 0.6f));
-	CreateBluePrintButton(7, "yellow");
-	ImGui::PopStyleColor(1);
+	if (ImGui::CollapsingHeader("BluePrint"))
+	{
+		ImGui::Text("Import in Bag");
+		ImGui::PushStyleColor(ImGuiCol_Button, (ImVec4)ImColor::HSV(0 / 7.0f, 0.6f, 0.6f));
+		BluePrintImportButton(4, "red");
+		ImGui::PopStyleColor(1);
+		ImGui::SameLine();
+		ImGui::PushStyleColor(ImGuiCol_Button, (ImVec4)ImColor::HSV(4 / 7.0f, 0.6f, 0.6f));
+		BluePrintImportButton(5, "blue");
+		ImGui::PopStyleColor(1);
+		ImGui::SameLine();
+		ImGui::PushStyleColor(ImGuiCol_Button, (ImVec4)ImColor::HSV(2 / 7.0f, 0.6f, 0.6f));
+		BluePrintImportButton(6, "green");
+		ImGui::PopStyleColor(1);
+		ImGui::SameLine();
+		ImGui::PushStyleColor(ImGuiCol_Button, (ImVec4)ImColor::HSV(1 / 7.0f, 0.6f, 0.6f));
+		BluePrintImportButton(7, "yellow");
+		ImGui::PopStyleColor(1);
 
-	CreateBluePrintButton(0, "online1");
-	ImGui::SameLine();
-	CreateBluePrintButton(1, "online2");
-	ImGui::SameLine();
-	CreateBluePrintButton(2, "online3");
-	ImGui::SameLine();
-	CreateBluePrintButton(3, "online4");
+		BluePrintImportButton(0, "online1");
+		ImGui::SameLine();
+		BluePrintImportButton(1, "online2");
+		ImGui::SameLine();
+		BluePrintImportButton(2, "online3");
+		ImGui::SameLine();
+		BluePrintImportButton(3, "online4");
+
+		ImGui::Text("Clear");
+		ImGui::PushStyleColor(ImGuiCol_Button, (ImVec4)ImColor::HSV(0 / 7.0f, 0.6f, 0.6f));
+		BluePrintClearButton(4, " red ");
+		ImGui::PopStyleColor(1);
+		ImGui::SameLine();
+		ImGui::PushStyleColor(ImGuiCol_Button, (ImVec4)ImColor::HSV(4 / 7.0f, 0.6f, 0.6f));
+		BluePrintClearButton(5, " blue ");
+		ImGui::PopStyleColor(1);
+		ImGui::SameLine();
+		ImGui::PushStyleColor(ImGuiCol_Button, (ImVec4)ImColor::HSV(2 / 7.0f, 0.6f, 0.6f));
+		BluePrintClearButton(6, " green ");
+		ImGui::PopStyleColor(1);
+		ImGui::SameLine();
+		ImGui::PushStyleColor(ImGuiCol_Button, (ImVec4)ImColor::HSV(1 / 7.0f, 0.6f, 0.6f));
+		BluePrintClearButton(7, " yellow ");
+		ImGui::PopStyleColor(1);
+	}
 }
 
 void GeneralMenu()
@@ -127,7 +190,7 @@ void ItemMenu()
 	if (ImGui::CollapsingHeader("Item"))
 	{
 		ImGui::Text("Inventory");
-		ImVec2 size = { 100, 20 };
+		ImVec2 size = { 160, 25 };
 		if (ImGui::Button("All 777", size))
 		{
 			uintptr_t address = GetBaseAddress() + 0xB88650;
@@ -173,7 +236,7 @@ void ItemMenu()
 			}
 		}
 
-		GeneralBluePrint();
+		ItemTemplateItem();
 	}
 }
 
@@ -201,6 +264,7 @@ void Initialize()
 {
 	ImportItem();
 	ImportBlock();
+	ImportTemplate();
 }
 
 void ExternalMenu()
@@ -208,6 +272,7 @@ void ExternalMenu()
 	ImGui::Begin("Menu");
 	GeneralMenu();
 	ItemMenu();
+	BluePrintMenu();
 	PlayerMenu();
 	ImGui::End();
 }

@@ -1,11 +1,7 @@
 #pragma once
-#include<vector>
-struct ItemInfo
-{
-	int id;
-	int count;
-};
+#include <vector>
+#include "Item.hpp"
 
-std::vector<ItemInfo> CreateBluePrintItem(uintptr_t address);
+std::vector<Item> CreateBluePrintItem(uintptr_t address);
 void ImportItem();
 void ImportBlock();

@@ -75,6 +75,12 @@
     <ClCompile Include="dqb2\dqb2.cpp">
       <Filter>ソース ファイル\dqb2</Filter>
     </ClCompile>
+    <ClCompile Include="dqb2\TemplateItem.cpp">
+      <Filter>ソース ファイル\dqb2</Filter>
+    </ClCompile>
+    <ClCompile Include="dqb2\Text.cpp">
+      <Filter>ソース ファイル\dqb2</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="kiero\minhook\dll_resources\MinHook.rc">
@@ -140,6 +146,15 @@
       <Filter>ソース ファイル\dqb2</Filter>
     </ClInclude>
     <ClInclude Include="dqb2\dqb2.hpp">
+      <Filter>ソース ファイル\dqb2</Filter>
+    </ClInclude>
+    <ClInclude Include="dqb2\Item.hpp">
+      <Filter>ソース ファイル\dqb2</Filter>
+    </ClInclude>
+    <ClInclude Include="dqb2\TemplateItem.hpp">
+      <Filter>ソース ファイル\dqb2</Filter>
+    </ClInclude>
+    <ClInclude Include="dqb2\Text.hpp">
       <Filter>ソース ファイル\dqb2</Filter>
     </ClInclude>
   </ItemGroup>

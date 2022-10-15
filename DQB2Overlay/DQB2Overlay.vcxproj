@@ -52,6 +52,7 @@
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <PrecompiledHeaderFile>
       </PrecompiledHeaderFile>
+      <LanguageStandard>stdcpp20</LanguageStandard>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -70,6 +71,7 @@
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <PrecompiledHeaderFile>
       </PrecompiledHeaderFile>
+      <LanguageStandard>stdcpp20</LanguageStandard>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -83,6 +85,8 @@
     <ClCompile Include="dllmain.cpp" />
     <ClCompile Include="dqb2\blueprint.cpp" />
     <ClCompile Include="dqb2\dqb2.cpp" />
+    <ClCompile Include="dqb2\TemplateItem.cpp" />
+    <ClCompile Include="dqb2\Text.cpp" />
     <ClCompile Include="imgui\imgui.cpp" />
     <ClCompile Include="imgui\imgui_demo.cpp" />
     <ClCompile Include="imgui\imgui_draw.cpp" />
@@ -104,6 +108,9 @@
   <ItemGroup>
     <ClInclude Include="dqb2\blueprint.hpp" />
     <ClInclude Include="dqb2\dqb2.hpp" />
+    <ClInclude Include="dqb2\Item.hpp" />
+    <ClInclude Include="dqb2\TemplateItem.hpp" />
+    <ClInclude Include="dqb2\Text.hpp" />
     <ClInclude Include="imgui\imconfig.h" />
     <ClInclude Include="imgui\imgui.h" />
     <ClInclude Include="imgui\imgui_impl_dx11.h" />
