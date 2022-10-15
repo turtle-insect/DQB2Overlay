@@ -20,16 +20,11 @@ Steam Dragon Quest Builders 2 Overlay Menu
 1. right-click on Builders 2 from the [Library]
 1. select [Browse Local Files] from [Manage]. 
 1. Copy the "info" folder.
-1. Copy "DQB2Overlay.dll" to the desired location on the local PC.
+1. Copy "DQB2Overlay.dll" and "DLLInjection.exe" to the desired location on the local PC.
 
 ## Setting up every time during game play
+1. Launch "DLLInjection.exe"
 1. Launch Builders 2.
-1. Start Cheat Engine.
-1. Load DQB2.exe in Cheat Engine.
-1. Select the [Memory View] button.
-1. Select [Inject DLL] from the [Tools] menu.
-1. Load "DQB2Overlay.dll
-1. Select "No" or "Yes" on the dialog box.
 
 ## How to use
 1. Operation compliant with Windows components
