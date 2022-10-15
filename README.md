@@ -1,7 +1,7 @@
 # DQB2Overlay
 Steam Dragon Quest Builders 2 Overlay Menu
 
-<img src="https://user-images.githubusercontent.com/30800900/195925883-a738f1a7-ae3e-4263-a67d-19363a316b5a.png">
+<img src="https://user-images.githubusercontent.com/30800900/195995412-1ebe458c-03bc-4832-9510-23b98d83da2b.png">
 
 # OS
 * Windows 10
