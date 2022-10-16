@@ -8,22 +8,22 @@
 
 typedef std::vector<TemplateItem> vecTemplateItem;
 
-static vecTemplateItem s_items;
-static std::vector<std::string> s_template_item_names;
-static char* s_template_item_name = nullptr;
+static vecTemplateItem s_template_items;
+static char* s_template_names = nullptr;
 
 void ImportTemplate()
 {
 	static std::string dir = "info/template/";
 	if (std::filesystem::exists(dir) == false) return;
 
+	std::vector<std::string> template_names;
 	for (const auto& file : std::filesystem::directory_iterator(dir))
 	{
 		auto path = file.path().generic_string();
 		auto path_split = split(path, '/');
 		if (path_split.size() < 1) continue;
 
-		s_template_item_names.push_back(path_split[path_split.size() - 1]);
+		template_names.push_back(path_split[path_split.size() - 1]);
 
 		std::ifstream reading_file;
 		reading_file.open(path, std::ios::in);
@@ -44,35 +44,35 @@ void ImportTemplate()
 			temp.items.push_back(item);
 		}
 
-		s_items.push_back(temp);
+		s_template_items.push_back(temp);
 	}
 
 	size_t length = 1;
-	for (auto name : s_template_item_names)
+	for (auto name : template_names)
 	{
 		length += name.length() + 1;
 	}
-	s_template_item_name = new char[length];
-	ZeroMemory(s_template_item_name, length);
+	s_template_names = new char[length];
+	ZeroMemory(s_template_names, length);
 	length = 0;
-	for (auto name : s_template_item_names)
+	for (auto name : template_names)
 	{
-		memcpy(s_template_item_name + length, name.c_str(), name.length());
+		memcpy(s_template_names + length, name.c_str(), name.length());
 		length =+ name.length() + 1;
 	}
 }
 
 int GetTemplateItemCount()
 {
-	return (int)s_template_item_names.size();
+	return (int)s_template_items.size();
 }
 
 char* GetTemplateItemNames()
 {
-	return s_template_item_name;
+	return s_template_names;
 }
 
 std::vector<TemplateItem>& GetTemplateItems()
 {
-	return s_items;
+	return s_template_items;
 }

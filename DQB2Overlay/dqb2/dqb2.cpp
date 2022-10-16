@@ -15,9 +15,9 @@ uintptr_t GetBaseAddress()
 	}static s_app[]
 		=
 	{
-		{L"DQB2.exe", 0x137E490},
-		{L"DQB2_EU.exe", 0x13AF558},
-		{L"DQB2_AS.exe", 0x139D3F8},
+		{TEXT("DQB2.exe"), 0x137E490},
+		{TEXT("DQB2_EU.exe"), 0x13AF558},
+		{TEXT("DQB2_AS.exe"), 0x139D3F8},
 	};
 
 	uintptr_t address = 0;

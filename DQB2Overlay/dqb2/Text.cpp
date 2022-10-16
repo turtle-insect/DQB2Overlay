@@ -1,3 +1,5 @@
+#include <filesystem>
+#include <fstream>
 #include <sstream>
 #include "Text.hpp"
 
@@ -28,4 +30,18 @@ std::vector<std::string> split(std::string& text, char delimiter)
 	}
 
 	return words;
+}
+
+void ReadText(std::string filename, oneline_func func)
+{
+	if (std::filesystem::exists(filename) == false) return;
+
+	std::ifstream reading_file;
+	reading_file.open(filename, std::ios::in);
+
+	std::string oneline;
+	for (; std::getline(reading_file, oneline);)
+	{
+		func(oneline);
+	}
 }

@@ -1,7 +1,5 @@
 #include <vector>
 #include <map>
-#include <fstream>
-#include <iostream>
 #include <string>
 #include "Text.hpp"
 #include "blueprint.hpp"
@@ -21,28 +19,12 @@ typedef std::map<int, std::map<int, std::string>*> mapBlock;
 static vecItem s_items;
 static mapBlock s_blocks;
 
-typedef void (*append_func)(std::vector<std::string>);
-
-void AppendBlock(std::vector<std::string> words);
-void AppendItem(std::vector<std::string> words);
-
-void ReadInfoText(std::string filename, append_func func)
+void AppendItem(std::string& oneline)
 {
-	std::ifstream reading_file;
-	reading_file.open(filename, std::ios::in);
+	if (oneline.length() < 3) return;
+	if (oneline[0] == '#') return;
 
-	std::string oneline;
-	for (; std::getline(reading_file, oneline);)
-	{
-		if (oneline.length() < 3) continue;
-		if (oneline[0] == '#') continue;
-
-		func(split(oneline, '\t'));
-	}
-}
-
-void AppendItem(std::vector<std::string> words)
-{
+	auto words = split(oneline, '\t');
 	if (words.size() < 5) return;
 
 	ItemInfo info;
@@ -54,8 +36,12 @@ void AppendItem(std::vector<std::string> words)
 	s_items.push_back(info);
 }
 
-void AppendBlock(std::vector<std::string> words)
+void AppendBlock(std::string& oneline)
 {
+	if (oneline.length() < 3) return;
+	if (oneline[0] == '#') return;
+
+	auto words = split(oneline, '\t');
 	if (words.size() < 3) return;
 
 	int category = s2i(words[0]);
@@ -83,7 +69,7 @@ void AppendBlock(std::vector<std::string> words)
 void ImportItem()
 {
 	s_items.clear();
-	ReadInfoText("info/item.txt", AppendItem);
+	ReadText("info/item.txt", AppendItem);
 }
 
 void ImportBlock()
@@ -93,7 +79,7 @@ void ImportBlock()
 		delete ite->second;
 	}
 	s_blocks.clear();
-	ReadInfoText("info/block.txt", AppendBlock);
+	ReadText("info/block.txt", AppendBlock);
 }
 
 std::vector<int> Search(int category, int id)
