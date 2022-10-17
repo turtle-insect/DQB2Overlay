@@ -16,7 +16,6 @@ typedef HRESULT(STDMETHODCALLTYPE* Present)(
 	/* [in] */ UINT SyncInterval,
 	/* [in] */ UINT Flags);
 
-static bool g_Execute = false;
 static bool g_Visible = true;
 static HWND g_Hwnd;
 static WNDPROC g_WndProc;
@@ -46,7 +45,8 @@ bool InitDevice(IDXGISwapChain* pSwapChain)
 	g_WndProc = (WNDPROC)SetWindowLongPtr(g_Hwnd, GWLP_WNDPROC, (LONG_PTR)WndProc);
 	ImGui::CreateContext();
 	ImGuiIO& io = ImGui::GetIO();
-	ImFont* font = io.Fonts->AddFontFromFileTTF("c:\\Windows\\Fonts\\meiryo.ttc", 18.0f);
+	io.AddKeyEvent(ImGuiKey_GamepadFaceDown, true);
+	ImFont* font = io.Fonts->AddFontFromFileTTF("c:\\Windows\\Fonts\\meiryo.ttc", 36.0f);
 	ImGui_ImplWin32_Init(g_Hwnd);
 	ImGui_ImplDX11_Init(g_pDevice, g_pContext);
 	return true;
@@ -62,7 +62,6 @@ HRESULT STDMETHODCALLTYPE hkPresent(IDXGISwapChain* pSwapChain, UINT SyncInterva
 {
 	static bool s_isInit = false;
 
-	if (!g_Execute) return 0;
 	if (!s_isInit)
 	{
 		s_isInit = InitDevice(pSwapChain);
@@ -86,14 +85,13 @@ HRESULT STDMETHODCALLTYPE hkPresent(IDXGISwapChain* pSwapChain, UINT SyncInterva
 DWORD WINAPI MainThread(LPVOID lpReserved)
 {
 	if (kiero::init(kiero::RenderType::D3D11) != kiero::Status::Success) return 0;
-	g_Execute = true;
 	kiero::bind(8, (void**)&g_Present, hkPresent);
 	IMGUI_CHECKVERSION();
 	ImGui::CreateContext();
 
 	Initialize();
 
-	for (; g_Execute;)
+	for (;;)
 	{
 		g_inputMenu.Update();
 		if (g_inputMenu.isPress())

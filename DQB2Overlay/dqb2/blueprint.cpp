@@ -6,35 +6,8 @@
 
 // https://github.com/turtle-insect/DQB2ProcessEditor/blob/main/DQB2ProcessEditor/Info.cs
 
-typedef struct 
-{
-	int id;
-	std::string name;
-	bool link;
-}ItemInfo;
-
-typedef std::vector<ItemInfo> vecItem;
 typedef std::map<int, std::map<int, std::string>*> mapBlock;
-
-static vecItem s_items;
 static mapBlock s_blocks;
-
-void AppendItem(std::string& oneline)
-{
-	if (oneline.length() < 3) return;
-	if (oneline[0] == '#') return;
-
-	auto words = split(oneline, '\t');
-	if (words.size() < 5) return;
-
-	ItemInfo info;
-	info.id = s2i(words[0]);
-	info.name = words[1];
-	info.link = words[4] == "TRUE";
-	if (info.id == 0) return;
-
-	s_items.push_back(info);
-}
 
 void AppendBlock(std::string& oneline)
 {
@@ -66,12 +39,6 @@ void AppendBlock(std::string& oneline)
 	blocks->insert(std::make_pair(id, name));
 }
 
-void ImportItem()
-{
-	s_items.clear();
-	ReadText("info/item.txt", AppendItem);
-}
-
 void ImportBlock()
 {
 	for (auto ite = s_blocks.begin(); ite != s_blocks.end(); ++ite)
@@ -94,23 +61,7 @@ std::vector<int> Search(int category, int id)
 	std::string& name = finder->second;
 	if (name.length() == 0) return item_ids;
 
-	for (size_t index = 0; index < s_items.size(); index++)
-	{
-		ItemInfo& info = s_items[index];
-		if (info.name == name)
-		{
-			if (info.link)
-			{
-				item_ids.clear();
-				item_ids.push_back(info.id);
-				break;
-			}
-
-			item_ids.push_back(info.id);
-		}
-	}
-
-	return item_ids;
+	return SearchID(name);
 }
 
 std::vector<Item> CreateBluePrintItem(uintptr_t address)

@@ -3,5 +3,4 @@
 #include "Item.hpp"
 
 std::vector<Item> CreateBluePrintItem(uintptr_t address);
-void ImportItem();
 void ImportBlock();

@@ -38,9 +38,14 @@ void ImportTemplate()
 			std::vector<std::string> words = split(oneline, '\t');
 			if (words.size() < 2) continue;
 
+			int id = s2i(words[0]);
+			if (SearchInfo(id) == nullptr) continue;
+
 			Item item;
-			item.id = s2i(words[0]);
+			item.id = id;
 			item.count = s2i(words[1]);
+			if (item.count > 999) item.count = 999;
+
 			temp.items.push_back(item);
 		}
 
@@ -58,7 +63,7 @@ void ImportTemplate()
 	for (auto name : template_names)
 	{
 		memcpy(s_template_names + length, name.c_str(), name.length());
-		length =+ name.length() + 1;
+		length += name.length() + 1;
 	}
 }
 

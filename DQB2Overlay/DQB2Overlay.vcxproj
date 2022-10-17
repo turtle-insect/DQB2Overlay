@@ -87,10 +87,10 @@
     <ClCompile Include="dllmain.cpp" />
     <ClCompile Include="dqb2\blueprint.cpp" />
     <ClCompile Include="dqb2\dqb2.cpp" />
+    <ClCompile Include="dqb2\Item.cpp" />
     <ClCompile Include="dqb2\TemplateItem.cpp" />
     <ClCompile Include="dqb2\Text.cpp" />
     <ClCompile Include="imgui\imgui.cpp" />
-    <ClCompile Include="imgui\imgui_demo.cpp" />
     <ClCompile Include="imgui\imgui_draw.cpp" />
     <ClCompile Include="imgui\imgui_impl_dx11.cpp" />
     <ClCompile Include="imgui\imgui_impl_win32.cpp" />

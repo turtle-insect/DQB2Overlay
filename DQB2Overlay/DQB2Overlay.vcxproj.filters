@@ -45,9 +45,6 @@
     <ClCompile Include="imgui\imgui.cpp">
       <Filter>ソース ファイル\imgui</Filter>
     </ClCompile>
-    <ClCompile Include="imgui\imgui_demo.cpp">
-      <Filter>ソース ファイル\imgui</Filter>
-    </ClCompile>
     <ClCompile Include="imgui\imgui_draw.cpp">
       <Filter>ソース ファイル\imgui</Filter>
     </ClCompile>
@@ -79,6 +76,9 @@
       <Filter>ソース ファイル\dqb2</Filter>
     </ClCompile>
     <ClCompile Include="dqb2\Text.cpp">
+      <Filter>ソース ファイル\dqb2</Filter>
+    </ClCompile>
+    <ClCompile Include="dqb2\Item.cpp">
       <Filter>ソース ファイル\dqb2</Filter>
     </ClCompile>
   </ItemGroup>

@@ -6,6 +6,8 @@
 #include "blueprint.hpp"
 #include "dqb2.hpp"
 
+static ImVec2 s_ButtonSize = { 150, 50 };
+
 uintptr_t GetBaseAddress()
 {
 	struct
@@ -40,14 +42,32 @@ uintptr_t GetBaseAddress()
 
 }
 
+void HelpMarker(const char* desc)
+{
+	ImGui::TextDisabled("(?)");
+	if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayShort))
+	{
+		ImGui::BeginTooltip();
+		ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
+		ImGui::TextUnformatted(desc);
+		ImGui::PopTextWrapPos();
+		ImGui::EndTooltip();
+	}
+}
+
 void ItemTemplateItem()
 {
 	static int current_index = 0;
 	
+	int count = GetTemplateItemCount();
+	if (count == 0) return;
+
 	ImGui::Text("Template Item");
-	ImGui::Combo("   ", &current_index, GetTemplateItemNames(), GetTemplateItemCount());
-	ImVec2 size = { 75, 25 };
-	if (ImGui::Button("Import", size))
+	ImGui::SameLine();
+	HelpMarker("Retrieve the items listed in the text\nfile in [/info/template] to inventory");
+	ImGui::Combo("   ", &current_index, GetTemplateItemNames(), count);
+	
+	if (ImGui::Button("Import", s_ButtonSize))
 	{
 		std::vector<TemplateItem>& templateItems = GetTemplateItems();
 		uintptr_t address = GetBaseAddress() + 0xB88650;
@@ -83,8 +103,7 @@ void GeneralTimeofDay()
 
 void BluePrintClearButton(int index, const char* const name)
 {
-	ImVec2 size = { 75, 25 };
-	if (ImGui::Button(name, size))
+	if (ImGui::Button(name, s_ButtonSize))
 	{
 		uintptr_t address = GetBaseAddress();
 		address += 0x167030 + index * 0x30008;
@@ -100,8 +119,7 @@ void BluePrintClearButton(int index, const char* const name)
 
 void BluePrintImportButton(int index, const char* const name)
 {
-	ImVec2 size = { 75, 25 };
-	if (ImGui::Button(name, size))
+	if (ImGui::Button(name, s_ButtonSize))
 	{
 		uintptr_t address = GetBaseAddress();
 
@@ -133,6 +151,8 @@ void BluePrintMenu()
 	if (ImGui::CollapsingHeader("BluePrint"))
 	{
 		ImGui::Text("Import in Bag");
+		ImGui::SameLine();
+		HelpMarker("Store items needed for BluePrint's in the bag");
 		ImGui::PushStyleColor(ImGuiCol_Button, (ImVec4)ImColor::HSV(0 / 7.0f, 0.6f, 0.6f));
 		BluePrintImportButton(4, "red");
 		ImGui::PopStyleColor(1);
@@ -187,11 +207,15 @@ void GeneralMenu()
 
 void ItemMenu()
 {
+	static int s_count = 777;
 	if (ImGui::CollapsingHeader("Item"))
 	{
+		ImGui::Text("Count");
+		ImGui::SliderInt("    ", &s_count, 0, 999);
 		ImGui::Text("Inventory");
-		ImVec2 size = { 160, 25 };
-		if (ImGui::Button("All 777", size))
+		ImVec2 size = s_ButtonSize;
+		size.x *= 2;
+		if (ImGui::Button("Change", size))
 		{
 			uintptr_t address = GetBaseAddress() + 0xB88650;
 			for (int index = 0; index < 15; index++)
@@ -199,7 +223,7 @@ void ItemMenu()
 				short id = *(short*)(address + index * 4);
 				if (id == 0) continue;
 
-				*(short*)(address + index * 4 + 2) = 777;
+				*(short*)(address + index * 4 + 2) = s_count;
 			}
 		}
 		ImGui::SameLine();
@@ -214,7 +238,7 @@ void ItemMenu()
 		}
 
 		ImGui::Text("Bag");
-		if (ImGui::Button(" All 777 ", size))
+		if (ImGui::Button(" Change ", size))
 		{
 			uintptr_t address = GetBaseAddress() + 0xB8DF74;
 			for (int index = 0; index < 420; index++)
@@ -222,7 +246,7 @@ void ItemMenu()
 				short id = *(short*)(address + index * 4);
 				if (id == 0) continue;
 
-				*(short*)(address + index * 4 + 2) = 777;
+				*(short*)(address + index * 4 + 2) = s_count;
 			}
 		}
 		ImGui::SameLine();
@@ -240,23 +264,50 @@ void ItemMenu()
 	}
 }
 
+void PlayerPosition()
+{
+	uintptr_t address = GetBaseAddress();
+	uintptr_t pos = address + 0x954B0;
+	char description[] = "Pos X";
+
+	for (int index = 0; index < 3; index++)
+	{
+		float value = *(float*)pos;
+		ImGui::Text(description);
+		ImGui::SameLine();
+		ImGui::Text("%3.2f", value);
+		pos += 4;
+		description[4]++;
+	}
+}
+
+void PlayerMoonJump()
+{
+	static bool s_isMoonJump = false;
+	ImGui::Checkbox("Moon Jump", &s_isMoonJump);
+	if (s_isMoonJump && ImGui::IsKeyDown(ImGuiKey_GamepadFaceDown))
+	{
+		uintptr_t address = (uintptr_t)GetModuleHandle(TEXT("DQB2.exe"));
+		if (address)
+		{
+			address += 0x133A8B8;
+			address = *(uintptr_t*)address;
+			address += 0x58;
+			address = *(uintptr_t*)address;
+			address += 0x198;
+			address = *(uintptr_t*)address;
+			address += 0x14;
+			*(float*)address = 0.25f;
+		}
+	}
+}
+
 void PlayerMenu()
 {
 	if (ImGui::CollapsingHeader("Player"))
 	{
-		uintptr_t address = GetBaseAddress();
-		uintptr_t pos = address + 0x954B0;
-		char description[] = "Pos X";
-
-		for (int index = 0; index < 3; index++)
-		{
-			float value = *(float*)pos;
-			ImGui::Text(description);
-			ImGui::SameLine();
-			ImGui::Text("%3.2f", value);
-			pos += 4;
-			description[4]++;
-		}
+		PlayerPosition();
+		PlayerMoonJump();
 	}
 }
 
