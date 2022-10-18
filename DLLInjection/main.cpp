@@ -67,17 +67,17 @@ BOOL DLLInjection(DWORD processID)
     HANDLE handle = OpenProcess(PROCESS_CREATE_THREAD | PROCESS_VM_OPERATION | PROCESS_VM_WRITE, FALSE, processID);
     if (handle == nullptr) return isInjection;
 
-    TCHAR current_path[MAX_PATH];
+    TCHAR current_path[MAX_PATH] = { 0 };
     GetCurrentDirectory(MAX_PATH, current_path);
     TCHAR dll_file[MAX_PATH] = { 0 };
     PathCombine(dll_file, current_path, TEXT("DQB2Overlay.dll"));
 
-    LPVOID address = VirtualAllocEx(handle, nullptr, MAX_PATH, MEM_COMMIT, PAGE_EXECUTE_READWRITE);
+    LPVOID address = VirtualAllocEx(handle, nullptr, sizeof(dll_file), MEM_COMMIT, PAGE_EXECUTE_READWRITE);
     if (address)
     {
         SIZE_T written;
         if(
-            WriteProcessMemory(handle, address, dll_file, MAX_PATH, &written) &&
+            WriteProcessMemory(handle, address, dll_file, sizeof(dll_file), &written) &&
             CreateRemoteThread(handle, nullptr, 0, (LPTHREAD_START_ROUTINE)GetLoadLibraryAddress(), address, 0, nullptr)
             )
         {

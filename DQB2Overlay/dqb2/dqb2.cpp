@@ -211,7 +211,7 @@ void ItemMenu()
 	if (ImGui::CollapsingHeader("Item"))
 	{
 		ImGui::Text("Count");
-		ImGui::SliderInt("    ", &s_count, 0, 999);
+		ImGui::SliderInt("    ", &s_count, 1, 999);
 		ImGui::Text("Inventory");
 		ImVec2 size = s_ButtonSize;
 		size.x *= 2;
