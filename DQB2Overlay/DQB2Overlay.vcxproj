@@ -110,6 +110,7 @@
   <ItemGroup>
     <ClInclude Include="dqb2\blueprint.hpp" />
     <ClInclude Include="dqb2\dqb2.hpp" />
+    <ClInclude Include="dqb2\IMenuAction.hpp" />
     <ClInclude Include="dqb2\Item.hpp" />
     <ClInclude Include="dqb2\TemplateItem.hpp" />
     <ClInclude Include="dqb2\Text.hpp" />

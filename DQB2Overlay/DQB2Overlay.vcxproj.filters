@@ -157,6 +157,9 @@
     <ClInclude Include="dqb2\Text.hpp">
       <Filter>ソース ファイル\dqb2</Filter>
     </ClInclude>
+    <ClInclude Include="dqb2\IMenuAction.hpp">
+      <Filter>ソース ファイル\dqb2</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="kiero\minhook\dll_resources\MinHook.def">

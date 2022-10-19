@@ -4,8 +4,6 @@
 #include <d3d11.h>
 #include "kiero/kiero.h"
 #include "imgui/imgui.h"
-#include "imgui/imgui_impl_win32.h"
-#include "imgui/imgui_impl_dx11.h"
 
 #include "input.hpp"
 #include "dqb2/dqb2.hpp"
@@ -16,14 +14,11 @@ typedef HRESULT(STDMETHODCALLTYPE* Present)(
 	/* [in] */ UINT SyncInterval,
 	/* [in] */ UINT Flags);
 
-static bool g_Visible = true;
 static HWND g_Hwnd;
 static WNDPROC g_WndProc;
 static Present g_Present;
-static ID3D11Device* g_pDevice = NULL;
-static ID3D11DeviceContext* g_pContext = NULL;
 Input g_inputMenu(VK_INSERT);
-
+DQBMenu g_Menu;
 
 
 LRESULT CALLBACK WndProc(const HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
@@ -36,26 +31,16 @@ LRESULT CALLBACK WndProc(const HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lPara
 
 bool InitDevice(IDXGISwapChain* pSwapChain)
 {
-	if (FAILED(pSwapChain->GetDevice(__uuidof(ID3D11Device), (void**)&g_pDevice))) return false;
+	ID3D11Device* pDevice;
+	if (FAILED(pSwapChain->GetDevice(__uuidof(ID3D11Device), (void**)&pDevice))) return false;
 
-	g_pDevice->GetImmediateContext(&g_pContext);
 	DXGI_SWAP_CHAIN_DESC sd;
 	pSwapChain->GetDesc(&sd);
 	g_Hwnd = sd.OutputWindow;
 	g_WndProc = (WNDPROC)SetWindowLongPtr(g_Hwnd, GWLP_WNDPROC, (LONG_PTR)WndProc);
-	ImGui::CreateContext();
-	ImGuiIO& io = ImGui::GetIO();
-	io.AddKeyEvent(ImGuiKey_GamepadFaceDown, true);
-	ImFont* font = io.Fonts->AddFontFromFileTTF("c:\\Windows\\Fonts\\meiryo.ttc", 36.0f);
-	ImGui_ImplWin32_Init(g_Hwnd);
-	ImGui_ImplDX11_Init(g_pDevice, g_pContext);
-	return true;
-}
 
-void CleanupDevice()
-{
-	if (g_pContext) g_pContext->Release();
-	if (g_pDevice) g_pDevice->Release();
+	g_Menu.LoadDevice(g_Hwnd, pDevice);
+	return true;
 }
 
 HRESULT STDMETHODCALLTYPE hkPresent(IDXGISwapChain* pSwapChain, UINT SyncInterval, UINT Flags)
@@ -67,16 +52,10 @@ HRESULT STDMETHODCALLTYPE hkPresent(IDXGISwapChain* pSwapChain, UINT SyncInterva
 		s_isInit = InitDevice(pSwapChain);
 	}
 
-	if (s_isInit && g_Visible)
+	if (s_isInit)
 	{
-		ImGui_ImplDX11_NewFrame();
-		ImGui_ImplWin32_NewFrame();
-		ImGui::NewFrame();
-
-		ExternalMenu();
-
-		ImGui::Render();
-		ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
+		g_Menu.CreateMenu();
+		g_Menu.ExecuteAction();
 	}
 
 	return g_Present(pSwapChain, SyncInterval, Flags);
@@ -89,24 +68,21 @@ DWORD WINAPI MainThread(LPVOID lpReserved)
 	IMGUI_CHECKVERSION();
 	ImGui::CreateContext();
 
-	Initialize();
+	g_Menu.Initialize();
 
 	for (;;)
 	{
 		g_inputMenu.Update();
 		if (g_inputMenu.isPress())
 		{
-			g_Visible = !g_Visible;
+			g_Menu.ChangeVisible();
 		}
 		Sleep(1);
 	}
 
+	g_Menu.Finalize();
 	SetWindowLongPtr(g_Hwnd, GWLP_WNDPROC, (LONG_PTR)g_WndProc);
-	ImGui_ImplDX11_Shutdown();
-	ImGui_ImplWin32_Shutdown();
-	ImGui::DestroyContext();
 	kiero::unbind(8);
-	CleanupDevice();
 	kiero::shutdown();
 	return 0;
 }

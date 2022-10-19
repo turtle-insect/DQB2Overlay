@@ -8,7 +8,6 @@ Steam Dragon Quest Builders 2 Overlay Menu
 
 # Soft
 * https://store.steampowered.com/app/1072420
-* https://github.com/cheat-engine/cheat-engine
 
 # Build
 * Windows 10(64bit)
@@ -34,3 +33,8 @@ Steam Dragon Quest Builders 2 Overlay Menu
 ## Troubleshooting
 Q : The menu does not appear?  
 A : Set only once at the first time. Delete "imgui.ini" in the location where the "info" folder is placed.
+
+# Credits
+* https://github.com/ocornut/imgui
+* https://github.com/Rebzzel/kiero
+* https://github.com/TsudaKageyu/minhook

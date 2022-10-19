@@ -8251,11 +8251,13 @@ void ImGui::UpdateInputEvents(bool trickle_fast_inputs)
     for (int n = 0; n < event_n; n++)
         g.InputEventsTrail.push_back(g.InputEventsQueue[n]);
 
+#ifdef _DEBUG
     // [DEBUG]
 #ifndef IMGUI_DISABLE_DEBUG_TOOLS
     if (event_n != 0 && (g.DebugLogFlags & ImGuiDebugLogFlags_EventIO))
         for (int n = 0; n < g.InputEventsQueue.Size; n++)
             DebugPrintInputEvent(n < event_n ? "Processed" : "Remaining", &g.InputEventsQueue[n]);
+#endif
 #endif
 
     // Remaining events will be processed on the next frame
