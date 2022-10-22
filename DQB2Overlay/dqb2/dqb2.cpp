@@ -4,6 +4,7 @@
 #include "../imgui/imgui_impl_dx11.h"
 #include "TemplateItem.hpp"
 #include "blueprint.hpp"
+#include "input.hpp"
 #include "dqb2.hpp"
 
 static ImVec2 s_ButtonSize = { 150, 50 };
@@ -65,6 +66,17 @@ void DQBMenu::Initialize()
 	Append(new DQBItemMenu());
 	Append(new DQBBluePrintMenu());
 	Append(new DQBPlayerMenu());
+}
+
+void DQBMenu::Update()
+{
+	static Input s_input(VK_INSERT);
+
+	s_input.Update();
+	if (s_input.isPress())
+	{
+		m_Visible = !m_Visible;
+	}
 }
 
 void DQBMenu::LoadDevice(HWND hwnd, ID3D11Device* pDevice)

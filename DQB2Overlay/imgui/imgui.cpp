@@ -393,7 +393,7 @@ CODE
                        the ImGuiKey_ModXXX were introduced in 1.87 and mostly used by backends.
                        the ImGuiModFlags_XXX have been exposed in imgui.h but not really used by any public api only by third-party extensions.
                        exceptionally commenting out the older ImGuiKeyModFlags_XXX names ahead of obsolescence schedule to reduce confusion and because they were not meant to be used anyway.
- - 2022/09/12 (1.89) - removed the bizarre legacy default argument for 'TreePush(const void* ptr = NULL)', always pass a pointer value explicitly, NULL is ok.
+ - 2022/09/12 (1.89) - removed the bizarre legacy default argument for 'TreePush(const void* ptr = NULL)', always pass a pointer value explicitly. NULL/nullptr is ok but require cast, e.g. TreePush((void*)nullptr);
  - 2022/09/05 (1.89) - commented out redirecting functions/enums names that were marked obsolete in 1.77 and 1.78 (June 2020):
                          - DragScalar(), DragScalarN(), DragFloat(), DragFloat2(), DragFloat3(), DragFloat4(): For old signatures ending with (..., const char* format, float power = 1.0f) -> use (..., format ImGuiSliderFlags_Logarithmic) if power != 1.0f.
                          - SliderScalar(), SliderScalarN(), SliderFloat(), SliderFloat2(), SliderFloat3(), SliderFloat4(): For old signatures ending with (..., const char* format, float power = 1.0f) -> use (..., format ImGuiSliderFlags_Logarithmic) if power != 1.0f.
@@ -860,7 +860,6 @@ CODE
 #include "imgui_internal.h"
 
 // System includes
-#include <ctype.h>      // toupper
 #include <stdio.h>      // vsnprintf, sscanf, printf
 #if defined(_MSC_VER) && _MSC_VER <= 1500 // MSVC 2008 or earlier
 #include <stddef.h>     // intptr_t
@@ -1613,14 +1612,14 @@ ImVec2 ImTriangleClosestPoint(const ImVec2& a, const ImVec2& b, const ImVec2& c,
 int ImStricmp(const char* str1, const char* str2)
 {
     int d;
-    while ((d = toupper(*str2) - toupper(*str1)) == 0 && *str1) { str1++; str2++; }
+    while ((d = ImToUpper(*str2) - ImToUpper(*str1)) == 0 && *str1) { str1++; str2++; }
     return d;
 }
 
 int ImStrnicmp(const char* str1, const char* str2, size_t count)
 {
     int d = 0;
-    while (count > 0 && (d = toupper(*str2) - toupper(*str1)) == 0 && *str1) { str1++; str2++; count--; }
+    while (count > 0 && (d = ImToUpper(*str2) - ImToUpper(*str1)) == 0 && *str1) { str1++; str2++; count--; }
     return d;
 }
 
@@ -1687,14 +1686,14 @@ const char* ImStristr(const char* haystack, const char* haystack_end, const char
     if (!needle_end)
         needle_end = needle + strlen(needle);
 
-    const char un0 = (char)toupper(*needle);
+    const char un0 = (char)ImToUpper(*needle);
     while ((!haystack_end && *haystack) || (haystack_end && haystack < haystack_end))
     {
-        if (toupper(*haystack) == un0)
+        if (ImToUpper(*haystack) == un0)
         {
             const char* b = needle + 1;
             for (const char* a = haystack + 1; b < needle_end; a++, b++)
-                if (toupper(*a) != toupper(*b))
+                if (ImToUpper(*a) != ImToUpper(*b))
                     break;
             if (b == needle_end)
                 return haystack;
@@ -3717,8 +3716,7 @@ bool ImGui::ItemHoverable(const ImRect& bb, ImGuiID id)
         // [DEBUG] Item Picker tool!
         // We perform the check here because SetHoveredID() is not frequently called (1~ time a frame), making
         // the cost of this tool near-zero. We can get slightly better call-stack and support picking non-hovered
-        // items if we perform the test in ItemAdd(), but that would incur a small runtime cost.
-        // #define IMGUI_DEBUG_TOOL_ITEM_PICKER_EX in imconfig.h if you want this check to also be performed in ItemAdd().
+        // items if we performed the test in ItemAdd(), but that would incur a small runtime cost.
         if (g.DebugItemPickerActive && g.HoveredIdPreviousFrame == id)
             GetForegroundDrawList()->AddRect(bb.Min, bb.Max, IM_COL32(255, 255, 0, 255));
         if (g.DebugItemPickerBreakId == id)
@@ -3731,6 +3729,7 @@ bool ImGui::ItemHoverable(const ImRect& bb, ImGuiID id)
     return true;
 }
 
+// FIXME: This is inlined/duplicated in ItemAdd()
 bool ImGui::IsClippedEx(const ImRect& bb, ImGuiID id)
 {
     ImGuiContext& g = *GImGui;
@@ -5342,7 +5341,7 @@ bool ImGui::IsAnyItemFocused()
 bool ImGui::IsItemVisible()
 {
     ImGuiContext& g = *GImGui;
-    return g.CurrentWindow->ClipRect.Overlaps(g.LastItemData.Rect);
+    return (g.LastItemData.StatusFlags & ImGuiItemStatusFlags_Visible) != 0;
 }
 
 bool ImGui::IsItemEdited()
@@ -8648,15 +8647,6 @@ bool ImGui::ItemAdd(const ImRect& bb, ImGuiID id, const ImRect* nav_bb_arg, ImGu
         // Empty identifier are valid and useful in a small amount of cases, but 99.9% of the time you want to use "##something".
         // READ THE FAQ: https://dearimgui.org/faq
         IM_ASSERT(id != window->ID && "Cannot have an empty ID at the root of a window. If you need an empty label, use ## and read the FAQ about how the ID Stack works!");
-
-        // [DEBUG] Item Picker tool, when enabling the "extended" version we perform the check in ItemAdd()
-#ifdef IMGUI_DEBUG_TOOL_ITEM_PICKER_EX
-        if (id == g.DebugItemPickerBreakId)
-        {
-            IM_DEBUG_BREAK();
-            g.DebugItemPickerBreakId = 0;
-        }
-#endif
     }
     g.NextItemData.Flags = ImGuiNextItemDataFlags_None;
 
@@ -8666,12 +8656,21 @@ bool ImGui::ItemAdd(const ImRect& bb, ImGuiID id, const ImRect* nav_bb_arg, ImGu
 #endif
 
     // Clipping test
-    const bool is_clipped = IsClippedEx(bb, id);
-    if (is_clipped)
-        return false;
+    // (FIXME: This is a modified copy of IsClippedEx() so we can reuse the is_rect_visible value)
+    //const bool is_clipped = IsClippedEx(bb, id);
+    //if (is_clipped)
+    //    return false;
+    const bool is_rect_visible = bb.Overlaps(window->ClipRect);
+    if (!is_rect_visible)
+        if (id == 0 || (id != g.ActiveId && id != g.NavId))
+            if (!g.LogEnabled)
+                return false;
+
     //if (g.IO.KeyAlt) window->DrawList->AddRect(bb.Min, bb.Max, IM_COL32(255,255,0,120)); // [DEBUG]
 
     // We need to calculate this now to take account of the current clipping rectangle (as items like Selectable may change them)
+    if (is_rect_visible)
+        g.LastItemData.StatusFlags |= ImGuiItemStatusFlags_Visible;
     if (IsMouseHoveringRect(bb.Min, bb.Max))
         g.LastItemData.StatusFlags |= ImGuiItemStatusFlags_HoveredRect;
     return true;
@@ -13414,7 +13413,7 @@ void ImGui::DebugNodeWindowsListByBeginStackParent(ImGuiWindow** windows, int wi
 }
 
 //-----------------------------------------------------------------------------
-// [SECTION] DEBUG LOG
+// [SECTION] DEBUG LOG WINDOW
 //-----------------------------------------------------------------------------
 
 void ImGui::DebugLog(const char* fmt, ...)

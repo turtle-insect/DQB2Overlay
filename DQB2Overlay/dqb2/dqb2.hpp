@@ -9,7 +9,7 @@ class DQBMenu : public IMenuAction
 public:
 	DQBMenu()
 		: m_Visible(true) {}
-	void ChangeVisible() {m_Visible = !m_Visible;}
+	void Update();
 	void LoadDevice(HWND hwnd, ID3D11Device* pDevice);
 	virtual void Initialize();
 	virtual void CreateMenu();

@@ -5,7 +5,6 @@
 #include "kiero/kiero.h"
 #include "imgui/imgui.h"
 
-#include "input.hpp"
 #include "dqb2/dqb2.hpp"
 
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
@@ -17,7 +16,6 @@ typedef HRESULT(STDMETHODCALLTYPE* Present)(
 static HWND g_Hwnd;
 static WNDPROC g_WndProc;
 static Present g_Present;
-Input g_inputMenu(VK_INSERT);
 DQBMenu g_Menu;
 
 
@@ -72,11 +70,7 @@ DWORD WINAPI MainThread(LPVOID lpReserved)
 
 	for (;;)
 	{
-		g_inputMenu.Update();
-		if (g_inputMenu.isPress())
-		{
-			g_Menu.ChangeVisible();
-		}
+		g_Menu.Update();
 		Sleep(1);
 	}
 
