@@ -65,7 +65,7 @@ CODE
 // [SECTION] MISC HELPERS/UTILITIES (Color functions)
 // [SECTION] ImGuiStorage
 // [SECTION] ImGuiTextFilter
-// [SECTION] ImGuiTextBuffer
+// [SECTION] ImGuiTextBuffer, ImGuiTextIndex
 // [SECTION] ImGuiListClipper
 // [SECTION] STYLING
 // [SECTION] RENDER HELPERS
@@ -2457,7 +2457,7 @@ bool ImGuiTextFilter::PassFilter(const char* text, const char* text_end) const
 }
 
 //-----------------------------------------------------------------------------
-// [SECTION] ImGuiTextBuffer
+// [SECTION] ImGuiTextBuffer, ImGuiTextIndex
 //-----------------------------------------------------------------------------
 
 // On some platform vsnprintf() takes va_list by reference and modifies it.
@@ -2523,6 +2523,20 @@ void ImGuiTextBuffer::appendfv(const char* fmt, va_list args)
     Buf.resize(needed_sz);
     ImFormatStringV(&Buf[write_off - 1], (size_t)len + 1, fmt, args_copy);
     va_end(args_copy);
+}
+
+void ImGuiTextIndex::append(const char* base, int old_size, int new_size)
+{
+    IM_ASSERT(old_size >= 0 && new_size >= old_size && new_size >= EndOffset);
+    if (old_size == new_size)
+        return;
+    if (EndOffset == 0 || base[EndOffset - 1] == '\n')
+        LineOffsets.push_back(EndOffset);
+    const char* base_end = base + new_size;
+    for (const char* p = base + old_size; (p = (const char*)memchr(p, '\n', base_end - p)) != 0; )
+        if (++p < base_end) // Don't push a trailing offset on last \n
+            LineOffsets.push_back((int)(intptr_t)(p - base));
+    EndOffset = ImMax(EndOffset, new_size);
 }
 
 //-----------------------------------------------------------------------------
@@ -4798,6 +4812,7 @@ void ImGui::Shutdown()
     }
     g.LogBuffer.clear();
     g.DebugLogBuf.clear();
+    g.DebugLogIndex.clear();
 
     g.Initialized = false;
 }
@@ -5859,7 +5874,7 @@ static bool ImGui::UpdateWindowManualResize(ImGuiWindow* window, const ImVec2& s
         if (resize_rect.Min.x > resize_rect.Max.x) ImSwap(resize_rect.Min.x, resize_rect.Max.x);
         if (resize_rect.Min.y > resize_rect.Max.y) ImSwap(resize_rect.Min.y, resize_rect.Max.y);
         ImGuiID resize_grip_id = window->GetID(resize_grip_n); // == GetWindowResizeCornerID()
-        KeepAliveID(resize_grip_id);
+        ItemAdd(resize_rect, resize_grip_id, NULL, ImGuiItemFlags_NoNav);
         ButtonBehavior(resize_rect, resize_grip_id, &hovered, &held, ImGuiButtonFlags_FlattenChildren | ImGuiButtonFlags_NoNavFocus);
         //GetForegroundDrawList(window)->AddRect(resize_rect.Min, resize_rect.Max, IM_COL32(255, 255, 0, 255));
         if (hovered || held)
@@ -5895,7 +5910,7 @@ static bool ImGui::UpdateWindowManualResize(ImGuiWindow* window, const ImVec2& s
         bool hovered, held;
         ImRect border_rect = GetResizeBorderRect(window, border_n, grip_hover_inner_size, WINDOWS_HOVER_PADDING);
         ImGuiID border_id = window->GetID(border_n + 4); // == GetWindowResizeBorderID()
-        KeepAliveID(border_id);
+        ItemAdd(border_rect, border_id, NULL, ImGuiItemFlags_NoNav);
         ButtonBehavior(border_rect, border_id, &hovered, &held, ImGuiButtonFlags_FlattenChildren | ImGuiButtonFlags_NoNavFocus);
         //GetForegroundDrawLists(window)->AddRect(border_rect.Min, border_rect.Max, IM_COL32(255, 255, 0, 255));
         if ((hovered && g.HoveredIdTimer > WINDOWS_RESIZE_FROM_EDGES_FEEDBACK_TIMER) || held)
@@ -8250,7 +8265,7 @@ void ImGui::UpdateInputEvents(bool trickle_fast_inputs)
     for (int n = 0; n < event_n; n++)
         g.InputEventsTrail.push_back(g.InputEventsQueue[n]);
 
-#ifdef _DEBUG
+#ifdef DEBUG
     // [DEBUG]
 #ifndef IMGUI_DISABLE_DEBUG_TOOLS
     if (event_n != 0 && (g.DebugLogFlags & ImGuiDebugLogFlags_EventIO))
@@ -8637,11 +8652,14 @@ bool ImGui::ItemAdd(const ImRect& bb, ImGuiID id, const ImRect* nav_bb_arg, ImGu
         //      to reach unclipped widgets. This would work if user had explicit scrolling control (e.g. mapped on a stick).
         // We intentionally don't check if g.NavWindow != NULL because g.NavAnyRequest should only be set when it is non null.
         // If we crash on a NULL g.NavWindow we need to fix the bug elsewhere.
-        window->DC.NavLayersActiveMaskNext |= (1 << window->DC.NavLayerCurrent);
-        if (g.NavId == id || g.NavAnyRequest)
-            if (g.NavWindow->RootWindowForNav == window->RootWindowForNav)
-                if (window == g.NavWindow || ((window->Flags | g.NavWindow->Flags) & ImGuiWindowFlags_NavFlattened))
-                    NavProcessItem();
+        if (!(g.LastItemData.InFlags & ImGuiItemFlags_NoNav))
+        {
+            window->DC.NavLayersActiveMaskNext |= (1 << window->DC.NavLayerCurrent);
+            if (g.NavId == id || g.NavAnyRequest)
+                if (g.NavWindow->RootWindowForNav == window->RootWindowForNav)
+                    if (window == g.NavWindow || ((window->Flags | g.NavWindow->Flags) & ImGuiWindowFlags_NavFlattened))
+                        NavProcessItem();
+        }
 
         // [DEBUG] People keep stumbling on this problem and using "" as identifier in the root of a window instead of "##something".
         // Empty identifier are valid and useful in a small amount of cases, but 99.9% of the time you want to use "##something".
@@ -10159,7 +10177,7 @@ static void ImGui::NavProcessItem()
             if (is_tab_stop || (g.NavMoveFlags & ImGuiNavMoveFlags_FocusApi))
                 NavProcessItemForTabbingRequest(id);
         }
-        else if ((g.NavId != id || (g.NavMoveFlags & ImGuiNavMoveFlags_AllowCurrentNavId)) && !(item_flags & (ImGuiItemFlags_Disabled | ImGuiItemFlags_NoNav)))
+        else if ((g.NavId != id || (g.NavMoveFlags & ImGuiNavMoveFlags_AllowCurrentNavId)) && !(item_flags & ImGuiItemFlags_Disabled))
         {
             ImGuiNavItemData* result = (window == g.NavWindow) ? &g.NavMoveResultLocal : &g.NavMoveResultOther;
             if (!is_tabbing)
@@ -11602,7 +11620,6 @@ const ImGuiPayload* ImGui::AcceptDragDropPayload(const char* type, ImGuiDragDrop
     }
 
     // Render default drop visuals
-    // FIXME-DRAGDROP: Settle on a proper default visuals for drop target.
     payload.Preview = was_accepted_previously;
     flags |= (g.DragDropSourceFlags & ImGuiDragDropFlags_AcceptNoDrawDefaultRect); // Source can also inhibit the preview (useful for external sources that live for 1 frame)
     if (!(flags & ImGuiDragDropFlags_AcceptNoDrawDefaultRect) && payload.Preview)
@@ -11614,6 +11631,12 @@ const ImGuiPayload* ImGui::AcceptDragDropPayload(const char* type, ImGuiDragDrop
         return NULL;
 
     return &payload;
+}
+
+// FIXME-DRAGDROP: Settle on a proper default visuals for drop target.
+void ImGui::RenderDragDropTargetRect(const ImRect& bb)
+{
+    GetWindowDrawList()->AddRect(bb.Min - ImVec2(3.5f, 3.5f), bb.Max + ImVec2(3.5f, 3.5f), GetColorU32(ImGuiCol_DragDropTarget), 0.0f, 0, 2.0f);
 }
 
 const ImGuiPayload* ImGui::GetDragDropPayload()
@@ -13432,6 +13455,7 @@ void ImGui::DebugLogV(const char* fmt, va_list args)
     g.DebugLogBuf.appendfv(fmt, args);
     if (g.DebugLogFlags & ImGuiDebugLogFlags_OutputToTTY)
         IMGUI_DEBUG_PRINTF("%s", g.DebugLogBuf.begin() + old_size);
+    g.DebugLogIndex.append(g.DebugLogBuf.c_str(), old_size, g.DebugLogBuf.size());
 }
 
 void ImGui::ShowDebugLogWindow(bool* p_open)
@@ -13456,12 +13480,24 @@ void ImGui::ShowDebugLogWindow(bool* p_open)
     SameLine(); CheckboxFlags("IO", &g.DebugLogFlags, ImGuiDebugLogFlags_EventIO);
 
     if (SmallButton("Clear"))
+    {
         g.DebugLogBuf.clear();
+        g.DebugLogIndex.clear();
+    }
     SameLine();
     if (SmallButton("Copy"))
         SetClipboardText(g.DebugLogBuf.c_str());
     BeginChild("##log", ImVec2(0.0f, 0.0f), true, ImGuiWindowFlags_AlwaysVerticalScrollbar | ImGuiWindowFlags_AlwaysHorizontalScrollbar);
-    TextUnformatted(g.DebugLogBuf.begin(), g.DebugLogBuf.end()); // FIXME-OPT: Could use a line index, but TextUnformatted() has a semi-decent fast path for large text.
+
+    ImGuiListClipper clipper;
+    clipper.Begin(g.DebugLogIndex.size());
+    while (clipper.Step())
+        for (int line_no = clipper.DisplayStart; line_no < clipper.DisplayEnd; line_no++)
+        {
+            const char* line_begin = g.DebugLogIndex.get_line_begin(g.DebugLogBuf.c_str(), line_no);
+            const char* line_end = g.DebugLogIndex.get_line_end(g.DebugLogBuf.c_str(), line_no);
+            TextUnformatted(line_begin, line_end);
+        }
     if (GetScrollY() >= GetScrollMaxY())
         SetScrollHereY(1.0f);
     EndChild();
