@@ -50,28 +50,26 @@ DWORD FindProcessID(vecTchar& find_names)
 
 FARPROC GetLoadLibraryAddress()
 {
-    FARPROC address = nullptr;
-
     HMODULE module = GetModuleHandle(TEXT("kernel32.dll"));
     if (module)
     {
-        address = GetProcAddress(module, "LoadLibraryW");
+        return GetProcAddress(module, "LoadLibraryW");
     }
     
-    return address;
+    return nullptr;
 }
 
 BOOL DLLInjection(DWORD processID)
 {
-    BOOL isInjection = FALSE;
     HANDLE handle = OpenProcess(PROCESS_CREATE_THREAD | PROCESS_VM_OPERATION | PROCESS_VM_WRITE, FALSE, processID);
-    if (handle == nullptr) return isInjection;
+    if (handle == nullptr) return FALSE;
 
     TCHAR current_path[MAX_PATH] = { 0 };
     GetCurrentDirectory(MAX_PATH, current_path);
     TCHAR dll_file[MAX_PATH] = { 0 };
     PathCombine(dll_file, current_path, TEXT("DQB2Overlay.dll"));
 
+    BOOL isInjection = FALSE;
     LPVOID address = VirtualAllocEx(handle, nullptr, sizeof(dll_file), MEM_COMMIT, PAGE_EXECUTE_READWRITE);
     if (address)
     {
