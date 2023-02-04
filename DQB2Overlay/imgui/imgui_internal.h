@@ -2509,14 +2509,15 @@ struct ImGuiTableCellData
     ImGuiTableColumnIdx         Column;     // Column number
 };
 
-// Per-instance data that needs preserving across frames (seemingly most others do not need to be preserved aside from debug needs, does that needs they could be moved to ImGuiTableTempData ?)
+// Per-instance data that needs preserving across frames (seemingly most others do not need to be preserved aside from debug needs. Does that means they could be moved to ImGuiTableTempData?)
 struct ImGuiTableInstanceData
 {
+    ImGuiID                     TableInstanceID;
     float                       LastOuterHeight;            // Outer height from last frame
     float                       LastFirstRowHeight;         // Height of first row from last frame (FIXME: this is used as "header height" and may be reworked)
     float                       LastFrozenHeight;           // Height of frozen section from last frame
 
-    ImGuiTableInstanceData()    { LastOuterHeight = LastFirstRowHeight = LastFrozenHeight = 0.0f; }
+    ImGuiTableInstanceData()    { TableInstanceID = 0; LastOuterHeight = LastFirstRowHeight = LastFrozenHeight = 0.0f; }
 };
 
 // FIXME-TABLE: more transient data could be stored in a stacked ImGuiTableTempData: e.g. SortSpecs, incoming RowData
@@ -2801,6 +2802,7 @@ namespace ImGui
     IMGUI_API void          MarkItemEdited(ImGuiID id);     // Mark data associated to given item as "edited", used by IsItemDeactivatedAfterEdit() function.
     IMGUI_API void          PushOverrideID(ImGuiID id);     // Push given value as-is at the top of the ID stack (whereas PushID combines old and new hashes)
     IMGUI_API ImGuiID       GetIDWithSeed(const char* str_id_begin, const char* str_id_end, ImGuiID seed);
+    IMGUI_API ImGuiID       GetIDWithSeed(int n, ImGuiID seed);
 
     // Basic Helpers for widget code
     IMGUI_API void          ItemSize(const ImVec2& size, float text_baseline_y = -1.0f);
@@ -2996,7 +2998,8 @@ namespace ImGui
     IMGUI_API void          TableDrawContextMenu(ImGuiTable* table);
     IMGUI_API bool          TableBeginContextMenuPopup(ImGuiTable* table);
     IMGUI_API void          TableMergeDrawChannels(ImGuiTable* table);
-    inline ImGuiTableInstanceData*   TableGetInstanceData(ImGuiTable* table, int instance_no) { if (instance_no == 0) return &table->InstanceDataFirst; return &table->InstanceDataExtra[instance_no - 1]; }
+    inline ImGuiTableInstanceData*  TableGetInstanceData(ImGuiTable* table, int instance_no) { if (instance_no == 0) return &table->InstanceDataFirst; return &table->InstanceDataExtra[instance_no - 1]; }
+    inline ImGuiID                  TableGetInstanceID(ImGuiTable* table, int instance_no)   { return TableGetInstanceData(table, instance_no)->TableInstanceID; }
     IMGUI_API void          TableSortSpecsSanitize(ImGuiTable* table);
     IMGUI_API void          TableSortSpecsBuild(ImGuiTable* table);
     IMGUI_API ImGuiSortDirection TableGetColumnNextSortDirection(ImGuiTableColumn* column);
@@ -3008,7 +3011,7 @@ namespace ImGui
     IMGUI_API void          TableEndCell(ImGuiTable* table);
     IMGUI_API ImRect        TableGetCellBgRect(const ImGuiTable* table, int column_n);
     IMGUI_API const char*   TableGetColumnName(const ImGuiTable* table, int column_n);
-    IMGUI_API ImGuiID       TableGetColumnResizeID(const ImGuiTable* table, int column_n, int instance_no = 0);
+    IMGUI_API ImGuiID       TableGetColumnResizeID(ImGuiTable* table, int column_n, int instance_no = 0);
     IMGUI_API float         TableGetMaxColumnWidth(const ImGuiTable* table, int column_n);
     IMGUI_API void          TableSetColumnWidthAutoSingle(ImGuiTable* table, int column_n);
     IMGUI_API void          TableSetColumnWidthAutoAll(ImGuiTable* table);
