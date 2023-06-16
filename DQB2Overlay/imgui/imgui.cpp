@@ -983,7 +983,6 @@ CODE
 // Debug options
 #define IMGUI_DEBUG_NAV_SCORING     0   // Display navigation scoring preview when hovering items. Display last moving direction matches when holding CTRL
 #define IMGUI_DEBUG_NAV_RECTS       0   // Display the reference navigation rectangle for each window
-#define IMGUI_DEBUG_INI_SETTINGS    0   // Save additional comments in .ini file (particularly helps for Docking, but makes saving slower)
 
 // When using CTRL+TAB (or Gamepad Square+L/R) we delay the visual a little in order to reduce visual noise doing a fast switch.
 static const float NAV_WINDOWING_HIGHLIGHT_DELAY            = 0.20f;    // Time before the highlight and screen dimming starts fading in
@@ -993,6 +992,9 @@ static const float NAV_WINDOWING_LIST_APPEAR_DELAY          = 0.15f;    // Time 
 static const float WINDOWS_HOVER_PADDING                    = 4.0f;     // Extend outside window for hovering/resizing (maxxed with TouchPadding) and inside windows for borders. Affect FindHoveredWindow().
 static const float WINDOWS_RESIZE_FROM_EDGES_FEEDBACK_TIMER = 0.04f;    // Reduce visual noise by only highlighting the border after a certain time.
 static const float WINDOWS_MOUSE_WHEEL_SCROLL_LOCK_TIMER    = 0.70f;    // Lock scrolled window (so it doesn't pick child windows that are scrolling through) for a certain time, unless mouse moved.
+
+// Tooltip offset
+static const ImVec2 TOOLTIP_DEFAULT_OFFSET = ImVec2(16, 10);            // Multiplied by g.Style.MouseCursorScale
 
 //-------------------------------------------------------------------------
 // [SECTION] FORWARD DECLARATIONS
@@ -1216,7 +1218,7 @@ ImGuiIO::ImGuiIO()
 #endif
     KeyRepeatDelay = 0.275f;
     KeyRepeatRate = 0.050f;
-    HoverDelayNormal = 0.30f;
+    HoverDelayNormal = 0.35f;
     HoverDelayShort = 0.10f;
     UserData = NULL;
 
@@ -2751,9 +2753,6 @@ static void ImGuiListClipper_SeekCursorForItem(ImGuiListClipper* clipper, int it
 ImGuiListClipper::ImGuiListClipper()
 {
     memset(this, 0, sizeof(*this));
-    Ctx = ImGui::GetCurrentContext();
-    IM_ASSERT(Ctx != NULL);
-    ItemsCount = -1;
 }
 
 ImGuiListClipper::~ImGuiListClipper()
@@ -2763,6 +2762,9 @@ ImGuiListClipper::~ImGuiListClipper()
 
 void ImGuiListClipper::Begin(int items_count, float items_height)
 {
+    if (Ctx == NULL)
+        Ctx = ImGui::GetCurrentContext();
+
     ImGuiContext& g = *Ctx;
     ImGuiWindow* window = g.CurrentWindow;
     IMGUI_DEBUG_LOG_CLIPPER("Clipper: Begin(%d,%.2f) in '%s'\n", items_count, items_height, window->Name);
@@ -2788,10 +2790,10 @@ void ImGuiListClipper::Begin(int items_count, float items_height)
 
 void ImGuiListClipper::End()
 {
-    ImGuiContext& g = *Ctx;
     if (ImGuiListClipperData* data = (ImGuiListClipperData*)TempData)
     {
         // In theory here we should assert that we are already at the right position, but it seems saner to just seek at the end and not assert/crash the user.
+        ImGuiContext& g = *Ctx;
         IMGUI_DEBUG_LOG_CLIPPER("Clipper: End() in '%s'\n", g.CurrentWindow->Name);
         if (ItemsCount >= 0 && ItemsCount < INT_MAX && DisplayStart >= 0)
             ImGuiListClipper_SeekCursorForItem(this, ItemsCount);
@@ -3510,6 +3512,7 @@ void ImGui::DestroyContext(ImGuiContext* ctx)
 // IMPORTANT: ###xxx suffixes must be same in ALL languages
 static const ImGuiLocEntry GLocalizationEntriesEnUS[] =
 {
+    { ImGuiLocKey_VersionStr,           "Dear ImGui " IMGUI_VERSION " (" IM_STRINGIFY(IMGUI_VERSION_NUM) ")" },
     { ImGuiLocKey_TableSizeOne,         "Size column to fit###SizeOne"          },
     { ImGuiLocKey_TableSizeAllFit,      "Size all columns to fit###SizeAll"     },
     { ImGuiLocKey_TableSizeAllDefault,  "Size all columns to default###SizeAll" },
@@ -4546,8 +4549,9 @@ void ImGui::NewFrame()
     else if (g.HoverDelayTimer > 0.0f)
     {
         // This gives a little bit of leeway before clearing the hover timer, allowing mouse to cross gaps
+        // We could expose 0.25f as io.HoverClearDelay but I am not sure of the logic yet, this is particularly subtle.
         g.HoverDelayClearTimer += g.IO.DeltaTime;
-        if (g.HoverDelayClearTimer >= ImMax(0.20f, g.IO.DeltaTime * 2.0f)) // ~6 frames at 30 Hz + allow for low framerate
+        if (g.HoverDelayClearTimer >= ImMax(0.25f, g.IO.DeltaTime * 2.0f)) // ~7 frames at 30 Hz + allow for low framerate
             g.HoverDelayTimer = g.HoverDelayClearTimer = 0.0f; // May want a decaying timer, in which case need to clamp at max first, based on max of caller last requested timer.
     }
 
@@ -6089,12 +6093,13 @@ void ImGui::UpdateWindowParentAndRootLinks(ImGuiWindow* window, ImGuiWindowFlags
 // When a modal popup is open, newly created windows that want focus (i.e. are not popups and do not specify ImGuiWindowFlags_NoFocusOnAppearing)
 // should be positioned behind that modal window, unless the window was created inside the modal begin-stack.
 // In case of multiple stacked modals newly created window honors begin stack order and does not go below its own modal parent.
-// - Window             // FindBlockingModal() returns Modal1
-//   - Window           //                  .. returns Modal1
+// - WindowA            // FindBlockingModal() returns Modal1
+//   - WindowB          //                  .. returns Modal1
 //   - Modal1           //                  .. returns Modal2
-//      - Window        //                  .. returns Modal2
-//          - Window    //                  .. returns Modal2
+//      - WindowC       //                  .. returns Modal2
+//          - WindowD   //                  .. returns Modal2
 //          - Modal2    //                  .. returns Modal2
+//            - WindowE //                  .. returns NULL
 // Notes:
 // - FindBlockingModal(NULL) == NULL is generally equivalent to GetTopMostPopupModal() == NULL.
 //   Only difference is here we check for ->Active/WasActive but it may be unecessary.
@@ -6105,7 +6110,7 @@ ImGuiWindow* ImGui::FindBlockingModal(ImGuiWindow* window)
         return NULL;
 
     // Find a modal that has common parent with specified window. Specified window should be positioned behind that modal.
-    for (int i = g.OpenPopupStack.Size - 1; i >= 0; i--)
+    for (int i = 0; i < g.OpenPopupStack.Size; i++)
     {
         ImGuiWindow* popup_window = g.OpenPopupStack.Data[i].Window;
         if (popup_window == NULL || !(popup_window->Flags & ImGuiWindowFlags_Modal))
@@ -6114,11 +6119,9 @@ ImGuiWindow* ImGui::FindBlockingModal(ImGuiWindow* window)
             continue;
         if (window == NULL)                                         // FindBlockingModal(NULL) test for if FocusWindow(NULL) is naturally possible via a mouse click.
             return popup_window;
-        if (IsWindowWithinBeginStackOf(window, popup_window))       // Window is rendered over last modal, no render order change needed.
-            break;
-        for (ImGuiWindow* parent = popup_window->ParentWindowInBeginStack->RootWindow; parent != NULL; parent = parent->ParentWindowInBeginStack->RootWindow)
-            if (IsWindowWithinBeginStackOf(window, parent))
-                return popup_window;                                // Place window above its begin stack parent.
+        if (IsWindowWithinBeginStackOf(window, popup_window))       // Window may be over modal
+            continue;
+        return popup_window;                                        // Place window right below first block modal
     }
     return NULL;
 }
@@ -8526,7 +8529,8 @@ static void ImGui::UpdateMouseInputs()
         io.MouseDelta = ImVec2(0.0f, 0.0f);
 
     // If mouse moved we re-enable mouse hovering in case it was disabled by gamepad/keyboard. In theory should use a >0.0f threshold but would need to reset in everywhere we set this to true.
-    if (io.MouseDelta.x != 0.0f || io.MouseDelta.y != 0.0f)
+    const bool is_stationary = (g.IO.MouseDelta.x == 0.0f && g.IO.MouseDelta.y == 0.0f);
+    if (!is_stationary)
         g.NavDisableMouseHover = false;
 
     io.MousePosPrev = io.MousePos;
@@ -10051,11 +10055,13 @@ bool ImGui::BeginTooltipEx(ImGuiTooltipFlags tooltip_flags, ImGuiWindowFlags ext
 
     if (g.DragDropWithinSource || g.DragDropWithinTarget)
     {
-        // The default tooltip position is a little offset to give space to see the context menu (it's also clamped within the current viewport/monitor)
-        // In the context of a dragging tooltip we try to reduce that offset and we enforce following the cursor.
-        // Whatever we do we want to call SetNextWindowPos() to enforce a tooltip position and disable clipping the tooltip without our display area, like regular tooltip do.
+        // Drag and Drop tooltips are positioning differently than other tooltips:
+        // - offset visibility to increase visibility around mouse.
+        // - never clamp within outer viewport boundary.
+        // We call SetNextWindowPos() to enforce position and disable clamping.
+        // See FindBestWindowPosForPopup() for positionning logic of other tooltips (not drag and drop ones).
         //ImVec2 tooltip_pos = g.IO.MousePos - g.ActiveIdClickOffset - g.Style.WindowPadding;
-        ImVec2 tooltip_pos = g.IO.MousePos + ImVec2(16 * g.Style.MouseCursorScale, 8 * g.Style.MouseCursorScale);
+        ImVec2 tooltip_pos = g.IO.MousePos + TOOLTIP_DEFAULT_OFFSET * g.Style.MouseCursorScale;
         SetNextWindowPos(tooltip_pos);
         SetNextWindowBgAlpha(g.Style.Colors[ImGuiCol_PopupBg].w * 0.60f);
         //PushStyleVar(ImGuiStyleVar_Alpha, g.Style.Alpha * 0.60f); // This would be nice but e.g ColorButton with checkboard has issue with transparent colors :(
@@ -10626,15 +10632,20 @@ ImVec2 ImGui::FindBestWindowPosForPopup(ImGuiWindow* window)
     }
     if (window->Flags & ImGuiWindowFlags_Tooltip)
     {
-        // Position tooltip (always follows mouse)
-        float sc = g.Style.MouseCursorScale;
-        ImVec2 ref_pos = NavCalcPreferredRefPos();
+        // Position tooltip (always follows mouse + clamp within outer boundaries)
+        // Note that drag and drop tooltips are NOT using this path: BeginTooltipEx() manually sets their position.
+        // In theory we could handle both cases in same location, but requires a bit of shuffling as drag and drop tooltips are calling SetWindowPos() leading to 'window_pos_set_by_api' being set in Begin()
+        IM_ASSERT(g.CurrentWindow == window);
+        const float scale = g.Style.MouseCursorScale;
+        const ImVec2 ref_pos = NavCalcPreferredRefPos();
+        const ImVec2 tooltip_pos = ref_pos + TOOLTIP_DEFAULT_OFFSET * scale;
         ImRect r_avoid;
         if (!g.NavDisableHighlight && g.NavDisableMouseHover && !(g.IO.ConfigFlags & ImGuiConfigFlags_NavEnableSetMousePos))
             r_avoid = ImRect(ref_pos.x - 16, ref_pos.y - 8, ref_pos.x + 16, ref_pos.y + 8);
         else
-            r_avoid = ImRect(ref_pos.x - 16, ref_pos.y - 8, ref_pos.x + 24 * sc, ref_pos.y + 24 * sc); // FIXME: Hard-coded based on mouse cursor shape expectation. Exact dimension not very important.
-        return FindBestWindowPosForPopupEx(ref_pos, window->Size, &window->AutoPosLastDirection, r_outer, r_avoid, ImGuiPopupPositionPolicy_Tooltip);
+            r_avoid = ImRect(ref_pos.x - 16, ref_pos.y - 8, ref_pos.x + 24 * scale, ref_pos.y + 24 * scale); // FIXME: Hard-coded based on mouse cursor shape expectation. Exact dimension not very important.
+        //GetForegroundDrawList()->AddRect(r_avoid.Min, r_avoid.Max, IM_COL32(255, 0, 255, 255));
+        return FindBestWindowPosForPopupEx(tooltip_pos, window->Size, &window->AutoPosLastDirection, r_outer, r_avoid, ImGuiPopupPositionPolicy_Tooltip);
     }
     IM_ASSERT(0);
     return window->Pos;
@@ -12947,12 +12958,13 @@ ImGuiWindowSettings* ImGui::CreateNewWindowSettings(const char* name)
 {
     ImGuiContext& g = *GImGui;
 
-#if !IMGUI_DEBUG_INI_SETTINGS
-    // Skip to the "###" marker if any. We don't skip past to match the behavior of GetID()
-    // Preserve the full string when IMGUI_DEBUG_INI_SETTINGS is set to make .ini inspection easier.
-    if (const char* p = strstr(name, "###"))
-        name = p;
-#endif
+    if (g.IO.ConfigDebugIniSettings == false)
+    {
+        // Skip to the "###" marker if any. We don't skip past to match the behavior of GetID()
+        // Preserve the full string when ConfigDebugVerboseIniSettings is set to make .ini inspection easier.
+        if (const char* p = strstr(name, "###"))
+            name = p;
+    }
     const size_t name_len = strlen(name);
 
     // Allocate chunk
@@ -13813,11 +13825,12 @@ void ImGui::ShowMetricsWindow(bool* p_open)
             Text("\"%s\"", g.IO.IniFilename);
         else
             TextUnformatted("<NULL>");
+        Checkbox("io.ConfigDebugIniSettings", &io.ConfigDebugIniSettings);
         Text("SettingsDirtyTimer %.2f", g.SettingsDirtyTimer);
         if (TreeNode("SettingsHandlers", "Settings handlers: (%d)", g.SettingsHandlers.Size))
         {
             for (int n = 0; n < g.SettingsHandlers.Size; n++)
-                BulletText("%s", g.SettingsHandlers[n].TypeName);
+                BulletText("\"%s\"", g.SettingsHandlers[n].TypeName);
             TreePop();
         }
         if (TreeNode("SettingsWindows", "Settings packed data: Windows: %d bytes", g.SettingsWindows.size()))

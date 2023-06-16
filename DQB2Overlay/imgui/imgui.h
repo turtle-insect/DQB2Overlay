@@ -23,7 +23,7 @@
 // Library Version
 // (Integer encoded as XYYZZ for use in #if preprocessor conditionals, e.g. '#if IMGUI_VERSION_NUM >= 12345')
 #define IMGUI_VERSION       "1.89.7 WIP"
-#define IMGUI_VERSION_NUM   18962
+#define IMGUI_VERSION_NUM   18963
 #define IMGUI_HAS_TABLE
 
 /*
@@ -1285,8 +1285,8 @@ enum ImGuiHoveredFlags_
     ImGuiHoveredFlags_RectOnly                      = ImGuiHoveredFlags_AllowWhenBlockedByPopup | ImGuiHoveredFlags_AllowWhenBlockedByActiveItem | ImGuiHoveredFlags_AllowWhenOverlapped,
     ImGuiHoveredFlags_RootAndChildWindows           = ImGuiHoveredFlags_RootWindow | ImGuiHoveredFlags_ChildWindows,
 
-    // Hovering delays (for tooltips)
-    ImGuiHoveredFlags_DelayNormal                   = 1 << 11,  // Return true after io.HoverDelayNormal elapsed (~0.30 sec)
+    // Mouse Hovering delays (for tooltips)
+    ImGuiHoveredFlags_DelayNormal                   = 1 << 11,  // Return true after io.HoverDelayNormal elapsed (~0.35 sec)
     ImGuiHoveredFlags_DelayShort                    = 1 << 12,  // Return true after io.HoverDelayShort elapsed (~0.10 sec)
     ImGuiHoveredFlags_NoSharedDelay                 = 1 << 13,  // Disable shared delay system where moving from one item to the next keeps the previous timer for a short time (standard for tooltips with long delays)
 };
@@ -1929,7 +1929,7 @@ struct ImGuiIO
     float       MouseDragThreshold;             // = 6.0f           // Distance threshold before considering we are dragging.
     float       KeyRepeatDelay;                 // = 0.275f         // When holding a key/button, time before it starts repeating, in seconds (for buttons in Repeat mode, etc.).
     float       KeyRepeatRate;                  // = 0.050f         // When holding a key/button, rate at which it repeats, in seconds.
-    float       HoverDelayNormal;               // = 0.30 sec       // Delay on hovering before IsItemHovered(ImGuiHoveredFlags_DelayNormal) returns true.
+    float       HoverDelayNormal;               // = 0.35 sec       // Delay on hovering before IsItemHovered(ImGuiHoveredFlags_DelayNormal) returns true.
     float       HoverDelayShort;                // = 0.10 sec       // Delay on hovering before IsItemHovered(ImGuiHoveredFlags_DelayShort) returns true.
     void*       UserData;                       // = NULL           // Store your own data.
 
@@ -1961,6 +1961,8 @@ struct ImGuiIO
     // - backends may have other side-effects on focus loss, so this will reduce side-effects but not necessary remove all of them.
     // - consider using e.g. Win32's IsDebuggerPresent() as an additional filter (or see ImOsIsDebuggerPresent() in imgui_test_engine/imgui_te_utils.cpp for a Unix compatible version).
     bool        ConfigDebugIgnoreFocusLoss;     // = false          // Ignore io.AddFocusEvent(false), consequently not calling io.ClearInputKeys() in input processing.
+    // - tools to audit ini data
+    bool        ConfigDebugIniSettings;         // = false          // Save .ini data with extra comments (particularly helpful for Docking, but makes saving slower)
 
     //------------------------------------------------------------------
     // Platform Functions
