@@ -1,4 +1,4 @@
-// dear imgui, v1.89.9 WIP
+// dear imgui, v1.89.9
 // (internal structures/api)
 
 // You may use this file to debug, understand or extend Dear ImGui features but we don't provide any guarantee of forward compatibility.
@@ -2617,6 +2617,7 @@ struct IMGUI_API ImGuiTable
     float                       RowPosY1;
     float                       RowPosY2;
     float                       RowMinHeight;               // Height submitted to TableNextRow()
+    float                       RowCellPaddingY;            // Top and bottom padding. Reloaded during row change.
     float                       RowTextBaseline;
     float                       RowIndentOffsetX;
     ImGuiTableRowFlags          RowFlags : 16;              // Current row flags, see ImGuiTableRowFlags_
@@ -2630,9 +2631,8 @@ struct IMGUI_API ImGuiTable
     float                       HostIndentX;
     float                       MinColumnWidth;
     float                       OuterPaddingX;
-    float                       CellPaddingX;               // Padding from each borders
-    float                       CellPaddingY;
-    float                       CellSpacingX1;              // Spacing between non-bordered cells
+    float                       CellPaddingX;               // Padding from each borders. Locked in BeginTable()/Layout.
+    float                       CellSpacingX1;              // Spacing between non-bordered cells. Locked in BeginTable()/Layout.
     float                       CellSpacingX2;
     float                       InnerWidth;                 // User value passed to BeginTable(), see comments at the top of BeginTable() for details.
     float                       ColumnsGivenWidth;          // Sum of current column width
