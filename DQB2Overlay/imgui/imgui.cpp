@@ -1188,6 +1188,7 @@ ImGuiStyle::ImGuiStyle()
     TabBorderSize           = 0.0f;             // Thickness of border around tabs.
     TabMinWidthForCloseButton = 0.0f;           // Minimum width for close button to appear on an unselected tab when hovered. Set to 0.0f to always show when hovering, set to FLT_MAX to never show close button unless selected.
     TabBarBorderSize        = 1.0f;             // Thickness of tab-bar separator, which takes on the tab active color to denote focus.
+    TableAngledHeadersAngle = 35.0f * (IM_PI / 180.0f); // Angle of angled headers (supported values range from -50 degrees to +50 degrees).
     ColorButtonPosition     = ImGuiDir_Right;   // Side of the color button in the ColorEdit4 widget (left/right). Defaults to ImGuiDir_Right.
     ButtonTextAlign         = ImVec2(0.5f,0.5f);// Alignment of button text when button is larger than text.
     SelectableTextAlign     = ImVec2(0.0f,0.0f);// Alignment of selectable text. Defaults to (0.0f, 0.0f) (top-left aligned). It's generally important to keep this left-aligned if you want to lay multiple items on a same line.
@@ -5444,7 +5445,6 @@ bool ImGui::BeginChildEx(const char* name, ImGuiID id, const ImVec2& size_arg, b
 
     ImGuiWindow* child_window = g.CurrentWindow;
     child_window->ChildId = id;
-    child_window->AutoFitChildAxises = (ImS8)auto_fit_axises;
 
     // Set the cursor to handle case where the user called SetNextWindowPos()+BeginChild() manually.
     // While this is not really documented/defined, it seems that the expected thing to do.
@@ -5487,22 +5487,13 @@ void ImGui::EndChild()
     IM_ASSERT(window->Flags & ImGuiWindowFlags_ChildWindow);   // Mismatched BeginChild()/EndChild() calls
 
     g.WithinEndChild = true;
-    if (window->BeginCount > 1)
+    ImVec2 child_size = window->Size;
+    End();
+    if (window->BeginCount == 1)
     {
-        End();
-    }
-    else
-    {
-        ImVec2 sz = window->Size;
-        if (window->AutoFitChildAxises & (1 << ImGuiAxis_X)) // Arbitrary minimum zero-ish child size of 4.0f causes less trouble than a 0.0f
-            sz.x = ImMax(4.0f, sz.x);
-        if (window->AutoFitChildAxises & (1 << ImGuiAxis_Y))
-            sz.y = ImMax(4.0f, sz.y);
-        End();
-
         ImGuiWindow* parent_window = g.CurrentWindow;
-        ImRect bb(parent_window->DC.CursorPos, parent_window->DC.CursorPos + sz);
-        ItemSize(sz);
+        ImRect bb(parent_window->DC.CursorPos, parent_window->DC.CursorPos + child_size);
+        ItemSize(child_size);
         if ((window->DC.NavLayersActiveMask != 0 || window->DC.NavWindowHasScrollY) && !(window->Flags & ImGuiWindowFlags_NavFlattened))
         {
             ItemAdd(bb, window->ChildId);
@@ -7145,7 +7136,6 @@ void ImGui::FocusTopMostWindowUnderOne(ImGuiWindow* under_this_window, ImGuiWind
     {
         // We may later decide to test for different NoXXXInputs based on the active navigation input (mouse vs nav) but that may feel more confusing to the user.
         ImGuiWindow* window = g.WindowsFocusOrder[i];
-        IM_ASSERT(window == window->RootWindow);
         if (window == ignore_window || !window->WasActive)
             continue;
         if ((window->Flags & (ImGuiWindowFlags_NoMouseInputs | ImGuiWindowFlags_NoNavInputs)) != (ImGuiWindowFlags_NoMouseInputs | ImGuiWindowFlags_NoNavInputs))
@@ -13799,8 +13789,8 @@ void ImGui::ShowMetricsWindow(bool* p_open)
             else if (rect_type == TRT_ColumnsRect)              { ImGuiTableColumn* c = &table->Columns[n]; return ImRect(c->MinX, table->InnerClipRect.Min.y, c->MaxX, table->InnerClipRect.Min.y + table_instance->LastOuterHeight); }
             else if (rect_type == TRT_ColumnsWorkRect)          { ImGuiTableColumn* c = &table->Columns[n]; return ImRect(c->WorkMinX, table->WorkRect.Min.y, c->WorkMaxX, table->WorkRect.Max.y); }
             else if (rect_type == TRT_ColumnsClipRect)          { ImGuiTableColumn* c = &table->Columns[n]; return c->ClipRect; }
-            else if (rect_type == TRT_ColumnsContentHeadersUsed){ ImGuiTableColumn* c = &table->Columns[n]; return ImRect(c->WorkMinX, table->InnerClipRect.Min.y, c->ContentMaxXHeadersUsed, table->InnerClipRect.Min.y + table_instance->LastFirstRowHeight); } // Note: y1/y2 not always accurate
-            else if (rect_type == TRT_ColumnsContentHeadersIdeal){ImGuiTableColumn* c = &table->Columns[n]; return ImRect(c->WorkMinX, table->InnerClipRect.Min.y, c->ContentMaxXHeadersIdeal, table->InnerClipRect.Min.y + table_instance->LastFirstRowHeight); }
+            else if (rect_type == TRT_ColumnsContentHeadersUsed){ ImGuiTableColumn* c = &table->Columns[n]; return ImRect(c->WorkMinX, table->InnerClipRect.Min.y, c->ContentMaxXHeadersUsed, table->InnerClipRect.Min.y + table_instance->LastTopHeadersRowHeight); } // Note: y1/y2 not always accurate
+            else if (rect_type == TRT_ColumnsContentHeadersIdeal){ImGuiTableColumn* c = &table->Columns[n]; return ImRect(c->WorkMinX, table->InnerClipRect.Min.y, c->ContentMaxXHeadersIdeal, table->InnerClipRect.Min.y + table_instance->LastTopHeadersRowHeight); }
             else if (rect_type == TRT_ColumnsContentFrozen)     { ImGuiTableColumn* c = &table->Columns[n]; return ImRect(c->WorkMinX, table->InnerClipRect.Min.y, c->ContentMaxXFrozen, table->InnerClipRect.Min.y + table_instance->LastFrozenHeight); }
             else if (rect_type == TRT_ColumnsContentUnfrozen)   { ImGuiTableColumn* c = &table->Columns[n]; return ImRect(c->WorkMinX, table->InnerClipRect.Min.y + table_instance->LastFrozenHeight, c->ContentMaxXUnfrozen, table->InnerClipRect.Max.y); }
             IM_ASSERT(0);
