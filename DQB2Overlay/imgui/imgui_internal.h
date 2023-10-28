@@ -1254,9 +1254,9 @@ struct IMGUI_API ImGuiStackSizes
 // Data saved for each window pushed into the stack
 struct ImGuiWindowStackData
 {
-    ImGuiWindow*            Window;
-    ImGuiLastItemData       ParentLastItemDataBackup;
-    ImGuiStackSizes         StackSizesOnBegin;      // Store size of various stacks for asserting
+    ImGuiWindow*        Window;
+    ImGuiLastItemData   ParentLastItemDataBackup;
+    ImGuiStackSizes     StackSizesOnBegin;      // Store size of various stacks for asserting
 };
 
 struct ImGuiShrinkWidthItem
@@ -2428,7 +2428,6 @@ struct IMGUI_API ImGuiWindow
     bool                    IsFallbackWindow;                   // Set on the "Debug##Default" window.
     bool                    IsExplicitChild;                    // Set when passed _ChildWindow, left to false by BeginDocked()
     bool                    HasCloseButton;                     // Set when the window has a close button (p_open != NULL)
-    signed char             ResizeBorderHeld;                   // Current border being held for resize (-1: none, otherwise 0-3)
     short                   BeginCount;                         // Number of Begin() during the current frame (generally 0 or 1, 1+ if appending via multiple Begin/End pairs)
     short                   BeginCountPreviousFrame;            // Number of Begin() during the previous frame
     short                   BeginOrderWithinParent;             // Begin() order within immediate parent window, if we are a child window. Otherwise 0.
@@ -3007,7 +3006,7 @@ namespace ImGui
     IMGUI_API void          LogSetNextTextDecoration(const char* prefix, const char* suffix);
 
     // Popups, Modals, Tooltips
-    IMGUI_API bool          BeginChildEx(const char* name, ImGuiID id, const ImVec2& size_arg, bool border, ImGuiWindowFlags flags);
+    IMGUI_API bool          BeginChildEx(const char* name, ImGuiID id, const ImVec2& size_arg, bool border, ImGuiWindowFlags window_flags);
     IMGUI_API void          OpenPopupEx(ImGuiID id, ImGuiPopupFlags popup_flags = ImGuiPopupFlags_None);
     IMGUI_API void          ClosePopupToLevel(int remaining, bool restore_focus_to_window_under_popup);
     IMGUI_API void          ClosePopupsOverWindow(ImGuiWindow* ref_window, bool restore_focus_to_window_under_popup);
