@@ -1,4 +1,4 @@
-// dear imgui, v1.90 WIP
+// dear imgui, v1.90.1 WIP
 // (main code and documentation)
 
 // Help:
@@ -357,7 +357,7 @@ CODE
 
  To decide whether to dispatch mouse/keyboard inputs to Dear ImGui to the rest of your application,
  you should read the 'io.WantCaptureMouse', 'io.WantCaptureKeyboard' and 'io.WantTextInput' flags!
- Please read the FAQ and example applications for details about this!
+ Please read the FAQ entry "How can I tell whether to dispatch mouse/keyboard to Dear ImGui or my application?" about this.
 
 
  HOW A SIMPLE RENDERING FUNCTION MAY LOOK LIKE
@@ -1944,6 +1944,8 @@ void ImFormatStringToTempBufferV(const char** out_buf, const char** out_buf_end,
     if (fmt[0] == '%' && fmt[1] == 's' && fmt[2] == 0)
     {
         const char* buf = va_arg(args, const char*); // Skip formatting when using "%s"
+        if (buf == NULL)
+            buf = "(null)";
         *out_buf = buf;
         if (out_buf_end) { *out_buf_end = buf + strlen(buf); }
     }
@@ -1951,6 +1953,11 @@ void ImFormatStringToTempBufferV(const char** out_buf, const char** out_buf_end,
     {
         int buf_len = va_arg(args, int); // Skip formatting when using "%.*s"
         const char* buf = va_arg(args, const char*);
+        if (buf == NULL)
+        {
+            buf = "(null)";
+            buf_len = ImMin(buf_len, 6);
+        }
         *out_buf = buf;
         *out_buf_end = buf + buf_len; // Disallow not passing 'out_buf_end' here. User is expected to use it.
     }
@@ -5338,6 +5345,9 @@ bool ImGui::IsItemToggledSelection()
     return (g.LastItemData.StatusFlags & ImGuiItemStatusFlags_ToggledSelection) ? true : false;
 }
 
+// IMPORTANT: If you are trying to check whether your mouse should be dispatched to Dear ImGui or to your underlying app,
+// you should not use this function! Use the 'io.WantCaptureMouse' boolean for that!
+// Refer to FAQ entry "How can I tell whether to dispatch mouse/keyboard to Dear ImGui or my application?" for details.
 bool ImGui::IsAnyItemHovered()
 {
     ImGuiContext& g = *GImGui;
@@ -5694,6 +5704,7 @@ static ImGuiWindow* CreateNewWindow(const char* name, ImGuiWindowFlags flags)
 static inline ImVec2 CalcWindowMinSize(ImGuiWindow* window)
 {
     // Popups, menus and childs bypass style.WindowMinSize by default, but we give then a non-zero minimum size to facilitate understanding problematic cases (e.g. empty popups)
+    // FIXME: the if/else could probably be removed, "reduce artifacts" section for all windows.
     ImGuiContext& g = *GImGui;
     ImVec2 size_min;
     if (window->Flags & (ImGuiWindowFlags_Popup | ImGuiWindowFlags_ChildMenu | ImGuiWindowFlags_ChildWindow))
@@ -5704,7 +5715,8 @@ static inline ImVec2 CalcWindowMinSize(ImGuiWindow* window)
     else
     {
         ImGuiWindow* window_for_height = window;
-        size_min = g.Style.WindowMinSize;
+        size_min.x = ((window->Flags & ImGuiWindowFlags_AlwaysAutoResize) == 0) ? g.Style.WindowMinSize.x : 4.0f;
+        size_min.y = ((window->Flags & ImGuiWindowFlags_AlwaysAutoResize) == 0) ? g.Style.WindowMinSize.x : 4.0f;
         size_min.y = ImMax(size_min.y, window_for_height->TitleBarHeight() + window_for_height->MenuBarHeight() + ImMax(0.0f, g.Style.WindowRounding - 1.0f)); // Reduce artifacts with very small windows
     }
     return size_min;
@@ -7463,6 +7475,10 @@ bool ImGui::IsWindowAbove(ImGuiWindow* potential_above, ImGuiWindow* potential_b
     return false;
 }
 
+// Is current window hovered and hoverable (e.g. not blocked by a popup/modal)? See ImGuiHoveredFlags_ for options.
+// IMPORTANT: If you are trying to check whether your mouse should be dispatched to Dear ImGui or to your underlying app,
+// you should not use this function! Use the 'io.WantCaptureMouse' boolean for that!
+// Refer to FAQ entry "How can I tell whether to dispatch mouse/keyboard to Dear ImGui or my application?" for details.
 bool ImGui::IsWindowHovered(ImGuiHoveredFlags flags)
 {
     IM_ASSERT((flags & ~ImGuiHoveredFlags_AllowedMaskForIsWindowHovered) == 0 && "Invalid flags for IsWindowHovered()!");
