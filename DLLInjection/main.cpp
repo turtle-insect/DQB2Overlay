@@ -92,7 +92,10 @@ DWORD WINAPI MainThread(LPVOID lpReserved)
 {
     vecTchar find_names = { TEXT("DQB2.exe"), TEXT("DQB2_EU.exe"), TEXT("DQB2_AS.exe") };
 
-    for (;;)
+    // wait 4minute
+    // 2sec * 30 => 1minute
+    // 30 * 4 => 4minute
+    for (int i = 0; i < 120; i++)
     {
         DWORD processID = FindProcessID(find_names);
         if (processID)
