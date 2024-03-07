@@ -1,3 +1,5 @@
+![DL Count](https://img.shields.io/github/downloads/turtle-insect/DQB2Overlay/total.svg)
+
 # DQB2Overlay
 Steam Dragon Quest Builders 2 Overlay Menu
 
