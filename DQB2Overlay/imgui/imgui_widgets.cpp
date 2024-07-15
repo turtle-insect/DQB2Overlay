@@ -2131,6 +2131,7 @@ static const ImGuiDataTypeInfo GDataTypeInfo[] =
 #endif
     { sizeof(float),            "float", "%.3f","%f"    },  // ImGuiDataType_Float (float are promoted to double in va_arg)
     { sizeof(double),           "double","%f",  "%lf"   },  // ImGuiDataType_Double
+    { sizeof(bool),             "bool", "%d",   "%d"    },  // ImGuiDataType_Bool
 };
 IM_STATIC_ASSERT(IM_ARRAYSIZE(GDataTypeInfo) == ImGuiDataType_COUNT);
 
@@ -6257,6 +6258,13 @@ bool ImGui::TreeNodeExV(const void* ptr_id, ImGuiTreeNodeFlags flags, const char
     return TreeNodeBehavior(window->GetID(ptr_id), flags, label, label_end);
 }
 
+bool ImGui::TreeNodeIsOpen(ImGuiID id)
+{
+    ImGuiContext& g = *GImGui;
+    ImGuiStorage* storage = g.CurrentWindow->DC.StateStorage;
+    return storage->GetInt(id, 0) != 0;
+}
+
 void ImGui::TreeNodeSetOpen(ImGuiID id, bool open)
 {
     ImGuiContext& g = *GImGui;
@@ -6269,7 +6277,7 @@ bool ImGui::TreeNodeUpdateNextOpen(ImGuiID id, ImGuiTreeNodeFlags flags)
     if (flags & ImGuiTreeNodeFlags_Leaf)
         return true;
 
-    // We only write to the tree storage if the user clicks (or explicitly use the SetNextItemOpen function)
+    // We only write to the tree storage if the user clicks, or explicitly use the SetNextItemOpen function
     ImGuiContext& g = *GImGui;
     ImGuiWindow* window = g.CurrentWindow;
     ImGuiStorage* storage = window->DC.StateStorage;
@@ -6311,6 +6319,7 @@ bool ImGui::TreeNodeUpdateNextOpen(ImGuiID id, ImGuiTreeNodeFlags flags)
 }
 
 // Store ImGuiTreeNodeStackData for just submitted node.
+// Currently only supports 32 level deep and we are fine with (1 << Depth) overflowing into a zero, easy to increase.
 static void TreeNodeStoreStackData(ImGuiTreeNodeFlags flags)
 {
     ImGuiContext& g = *GImGui;
@@ -6393,7 +6402,6 @@ bool ImGui::TreeNodeBehavior(ImGuiID id, ImGuiTreeNodeFlags flags, const char* l
     // Store data for the current depth to allow returning to this node from any child item.
     // For this purpose we essentially compare if g.NavIdIsAlive went from 0 to 1 between TreeNode() and TreePop().
     // It will become tempting to enable ImGuiTreeNodeFlags_NavLeftJumpsBackHere by default or move it to ImGuiStyle.
-    // Currently only supports 32 level deep and we are fine with (1 << Depth) overflowing into a zero, easy to increase.
     bool store_tree_node_stack_data = false;
     if (!(flags & ImGuiTreeNodeFlags_NoTreePushOnOpen))
     {
@@ -6517,7 +6525,6 @@ bool ImGui::TreeNodeBehavior(ImGuiID id, ImGuiTreeNodeFlags flags, const char* l
             text_pos.x -= text_offset_x -padding.x;
         if (flags & ImGuiTreeNodeFlags_ClipLabelForTrailingButton)
             frame_bb.Max.x -= g.FontSize + style.FramePadding.x;
-
         if (g.LogEnabled)
             LogSetNextTextDecoration("###", "###");
     }
@@ -6550,7 +6557,7 @@ bool ImGui::TreeNodeBehavior(ImGuiID id, ImGuiTreeNodeFlags flags, const char* l
     if (store_tree_node_stack_data && is_open)
         TreeNodeStoreStackData(flags); // Call before TreePushOverrideID()
     if (is_open && !(flags & ImGuiTreeNodeFlags_NoTreePushOnOpen))
-        TreePushOverrideID(id);
+        TreePushOverrideID(id); // Could use TreePush(label) but this avoid computing twice
 
     IMGUI_TEST_ENGINE_ITEM_INFO(id, label, g.LastItemData.StatusFlags | (is_leaf ? 0 : ImGuiItemStatusFlags_Openable) | (is_open ? ImGuiItemStatusFlags_Opened : 0));
     return is_open;
@@ -6738,7 +6745,7 @@ bool ImGui::Selectable(const char* label, bool selected, ImGuiSelectableFlags fl
     }
 
     const bool disabled_item = (flags & ImGuiSelectableFlags_Disabled) != 0;
-    const bool item_add = ItemAdd(bb, id, NULL, disabled_item ? ImGuiItemFlags_Disabled : ImGuiItemFlags_None);
+    const bool item_add = ItemAdd(bb, id, NULL, disabled_item ? (ImGuiItemFlags_)ImGuiItemFlags_Disabled : ImGuiItemFlags_None);
     if (span_all_columns)
     {
         window->ClipRect.Min.x = backup_clip_rect_min_x;
@@ -6824,7 +6831,7 @@ bool ImGui::Selectable(const char* label, bool selected, ImGuiSelectableFlags fl
     RenderTextClipped(text_min, text_max, label, NULL, &label_size, style.SelectableTextAlign, &bb);
 
     // Automatically close popups
-    if (pressed && (window->Flags & ImGuiWindowFlags_Popup) && !(flags & ImGuiSelectableFlags_DontClosePopups) && !(g.LastItemData.InFlags & ImGuiItemFlags_SelectableDontClosePopup))
+    if (pressed && (window->Flags & ImGuiWindowFlags_Popup) && !(flags & ImGuiSelectableFlags_NoAutoClosePopups) && (g.LastItemData.InFlags & ImGuiItemFlags_AutoClosePopups))
         CloseCurrentPopup();
 
     if (disabled_item && !disabled_global)
@@ -7652,7 +7659,7 @@ bool ImGui::BeginMenuEx(const char* label, const char* icon, bool enabled)
     bool pressed;
 
     // We use ImGuiSelectableFlags_NoSetKeyOwner to allow down on one menu item, move, up on another.
-    const ImGuiSelectableFlags selectable_flags = ImGuiSelectableFlags_NoHoldingActiveID | ImGuiSelectableFlags_NoSetKeyOwner | ImGuiSelectableFlags_SelectOnClick | ImGuiSelectableFlags_DontClosePopups;
+    const ImGuiSelectableFlags selectable_flags = ImGuiSelectableFlags_NoHoldingActiveID | ImGuiSelectableFlags_NoSetKeyOwner | ImGuiSelectableFlags_SelectOnClick | ImGuiSelectableFlags_NoAutoClosePopups;
     if (window->DC.LayoutType == ImGuiLayoutType_Horizontal)
     {
         // Menu inside an horizontal menu bar

@@ -430,6 +430,9 @@ CODE
  When you are not sure about an old symbol or function name, try using the Search/Find function of your IDE to look for comments or references in all imgui files.
  You can read releases logs https://github.com/ocornut/imgui/releases for more details.
 
+ - 2024/07/15 (1.91.0) - renamed ImGuiSelectableFlags_DontClosePopups to ImGuiSelectableFlags_NoAutoClosePopups. (#1379, #1468, #2200, #4936, #5216, #7302, #7573)
+                         (internals: also renamed ImGuiItemFlags_SelectableDontClosePopup into ImGuiItemFlags_AutoClosePopups with inverted behaviors)
+ - 2024/07/15 (1.91.0) - obsoleted PushButtonRepeat()/PopButtonRepeat() in favor of using new PushItemFlag(ImGuiItemFlags_ButtonRepeat, ...)/PopItemFlag().
  - 2024/07/02 (1.91.0) - commented out obsolete ImGuiModFlags (renamed to ImGuiKeyChord in 1.89). (#4921, #456)
                        - commented out obsolete ImGuiModFlags_XXX values (renamed to ImGuiMod_XXX in 1.89). (#4921, #456)
                             - ImGuiModFlags_Ctrl -> ImGuiMod_Ctrl, ImGuiModFlags_Shift -> ImGuiMod_Shift etc.
@@ -4902,7 +4905,8 @@ void ImGui::NewFrame()
     g.CurrentWindowStack.resize(0);
     g.BeginPopupStack.resize(0);
     g.ItemFlagsStack.resize(0);
-    g.ItemFlagsStack.push_back(ImGuiItemFlags_None);
+    g.ItemFlagsStack.push_back(ImGuiItemFlags_AutoClosePopups); // Default flags
+    g.CurrentItemFlags = g.ItemFlagsStack.back();
     g.GroupStack.resize(0);
 
     // [DEBUG] Update debug features
@@ -7618,26 +7622,6 @@ void ImGui::EndDisabledOverrideReenable()
     g.ItemFlagsStack.pop_back();
     g.CurrentItemFlags = g.ItemFlagsStack.back();
     g.Style.Alpha = g.DisabledAlphaBackup * g.Style.DisabledAlpha;
-}
-
-void ImGui::PushTabStop(bool tab_stop)
-{
-    PushItemFlag(ImGuiItemFlags_NoTabStop, !tab_stop);
-}
-
-void ImGui::PopTabStop()
-{
-    PopItemFlag();
-}
-
-void ImGui::PushButtonRepeat(bool repeat)
-{
-    PushItemFlag(ImGuiItemFlags_ButtonRepeat, repeat);
-}
-
-void ImGui::PopButtonRepeat()
-{
-    PopItemFlag();
 }
 
 void ImGui::PushTextWrapPos(float wrap_pos_x)
@@ -13779,10 +13763,10 @@ void ImGui::LogButtons()
 #endif
     const bool log_to_file = Button("Log To File"); SameLine();
     const bool log_to_clipboard = Button("Log To Clipboard"); SameLine();
-    PushTabStop(false);
+    PushItemFlag(ImGuiItemFlags_NoTabStop, true);
     SetNextItemWidth(80.0f);
     SliderInt("Default Depth", &g.LogDepthToExpandDefault, 0, 9, NULL);
-    PopTabStop();
+    PopItemFlag();
     PopID();
 
     // Start logging at the end of the function so that the buttons don't appear in the log
@@ -14378,7 +14362,7 @@ static bool PlatformOpenInShellFn_DefaultImpl(ImGuiContext*, const char* path)
 #include <unistd.h>
 static bool PlatformOpenInShellFn_DefaultImpl(ImGuiContext*, const char* path)
 {
-#if __APPLE__
+#if defined(__APPLE__)
     const char* args[] { "open", "--", path, NULL };
 #else
     const char* args[] { "xdg-open", path, NULL };
