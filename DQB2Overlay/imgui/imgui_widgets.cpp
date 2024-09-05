@@ -1,4 +1,4 @@
-// dear imgui, v1.91.1 WIP
+// dear imgui, v1.91.2 WIP
 // (widgets code)
 
 /*
@@ -3894,9 +3894,18 @@ static void    STB_TEXTEDIT_LAYOUTROW(StbTexteditRow* r, ImGuiInputTextState* ob
     r->num_chars = (int)(text_remaining - (text + line_start_idx));
 }
 
-static bool is_separator(unsigned int c)
+static bool ImCharIsSeparatorW(unsigned int c)
 {
-    return c==',' || c==';' || c=='(' || c==')' || c=='{' || c=='}' || c=='[' || c==']' || c=='|' || c=='\n' || c=='\r' || c=='.' || c=='!' || c=='\\' || c=='/';
+    static const unsigned int separator_list[] =
+    {
+        ',', 0x3001, '.', 0x3002, ';', 0xFF1B, '(', 0xFF08, ')', 0xFF09, '{', 0xFF5B, '}', 0xFF5D,
+        '[', 0x300C, ']', 0x300D, '|', 0xFF5C, '!', 0xFF01, '\\', 0xFFE5, '/', 0x30FB, 0xFF0F,
+        '\n', '\r',
+    };
+    for (unsigned int separator : separator_list)
+        if (c == separator)
+            return true;
+    return false;
 }
 
 static int is_word_boundary_from_right(ImGuiInputTextState* obj, int idx)
@@ -3906,9 +3915,9 @@ static int is_word_boundary_from_right(ImGuiInputTextState* obj, int idx)
         return 0;
 
     bool prev_white = ImCharIsBlankW(obj->TextW[idx - 1]);
-    bool prev_separ = is_separator(obj->TextW[idx - 1]);
+    bool prev_separ = ImCharIsSeparatorW(obj->TextW[idx - 1]);
     bool curr_white = ImCharIsBlankW(obj->TextW[idx]);
-    bool curr_separ = is_separator(obj->TextW[idx]);
+    bool curr_separ = ImCharIsSeparatorW(obj->TextW[idx]);
     return ((prev_white || prev_separ) && !(curr_separ || curr_white)) || (curr_separ && !prev_separ);
 }
 static int is_word_boundary_from_left(ImGuiInputTextState* obj, int idx)
@@ -3917,9 +3926,9 @@ static int is_word_boundary_from_left(ImGuiInputTextState* obj, int idx)
         return 0;
 
     bool prev_white = ImCharIsBlankW(obj->TextW[idx]);
-    bool prev_separ = is_separator(obj->TextW[idx]);
+    bool prev_separ = ImCharIsSeparatorW(obj->TextW[idx]);
     bool curr_white = ImCharIsBlankW(obj->TextW[idx - 1]);
-    bool curr_separ = is_separator(obj->TextW[idx - 1]);
+    bool curr_separ = ImCharIsSeparatorW(obj->TextW[idx - 1]);
     return ((prev_white) && !(curr_separ || curr_white)) || (curr_separ && !prev_separ);
 }
 static int  STB_TEXTEDIT_MOVEWORDLEFT_IMPL(ImGuiInputTextState* obj, int idx)   { idx--; while (idx >= 0 && !is_word_boundary_from_right(obj, idx)) idx--; return idx < 0 ? 0 : idx; }
@@ -5196,7 +5205,7 @@ bool ImGui::InputTextEx(const char* label, const char* hint, char* buf, int buf_
     {
         // For focus requests to work on our multiline we need to ensure our child ItemAdd() call specifies the ImGuiItemFlags_Inputable (see #4761, #7870)...
         Dummy(ImVec2(text_size.x, text_size.y + style.FramePadding.y));
-        g.NextItemData.ItemFlags |= ImGuiItemFlags_Inputable | ImGuiItemFlags_NoTabStop;
+        g.NextItemData.ItemFlags |= (ImGuiItemFlags)ImGuiItemFlags_Inputable | ImGuiItemFlags_NoTabStop;
         EndChild();
         item_data_backup.StatusFlags |= (g.LastItemData.StatusFlags & ImGuiItemStatusFlags_HoveredWindow);
 
@@ -8224,9 +8233,10 @@ int ImGui::PlotEx(ImGuiPlotType plot_type, const char* label, float (*values_get
     const ImRect inner_bb(frame_bb.Min + style.FramePadding, frame_bb.Max - style.FramePadding);
     const ImRect total_bb(frame_bb.Min, frame_bb.Max + ImVec2(label_size.x > 0.0f ? style.ItemInnerSpacing.x + label_size.x : 0.0f, 0));
     ItemSize(total_bb, style.FramePadding.y);
-    if (!ItemAdd(total_bb, 0, &frame_bb))
+    if (!ItemAdd(total_bb, id, &frame_bb, ImGuiItemFlags_NoNav))
         return -1;
-    const bool hovered = ItemHoverable(frame_bb, id, g.LastItemData.InFlags);
+    bool hovered;
+    ButtonBehavior(frame_bb, id, &hovered, NULL);
 
     // Determine scale from values if not specified
     if (scale_min == FLT_MAX || scale_max == FLT_MAX)
@@ -8557,9 +8567,9 @@ bool ImGui::BeginViewportSideBar(const char* name, ImGuiViewport* viewport_p, Im
 
         // Report our size into work area (for next frame) using actual window size
         if (dir == ImGuiDir_Up || dir == ImGuiDir_Left)
-            viewport->BuildWorkOffsetMin[axis] += axis_size;
+            viewport->BuildWorkInsetMin[axis] += axis_size;
         else if (dir == ImGuiDir_Down || dir == ImGuiDir_Right)
-            viewport->BuildWorkOffsetMax[axis] -= axis_size;
+            viewport->BuildWorkInsetMax[axis] += axis_size;
     }
 
     window_flags |= ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove;
@@ -9986,7 +9996,7 @@ bool    ImGui::TabItemEx(ImGuiTabBar* tab_bar, const char* label, bool* p_open, 
 
     // Select with right mouse button. This is so the common idiom for context menu automatically highlight the current widget.
     const bool hovered_unblocked = IsItemHovered(ImGuiHoveredFlags_AllowWhenBlockedByPopup);
-    if (hovered_unblocked && (IsMouseClicked(1) || IsMouseReleased(1)) && !is_tab_button)
+    if (tab_bar->SelectedTabId != tab->ID && hovered_unblocked && (IsMouseClicked(1) || IsMouseReleased(1)) && !is_tab_button)
         TabBarQueueFocus(tab_bar, tab);
 
     if (tab_bar->Flags & ImGuiTabBarFlags_NoCloseWithMiddleMouseButton)

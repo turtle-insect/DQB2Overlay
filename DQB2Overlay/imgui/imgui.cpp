@@ -1,4 +1,4 @@
-// dear imgui, v1.91.1 WIP
+// dear imgui, v1.91.2 WIP
 // (main code and documentation)
 
 // Help:
@@ -1380,12 +1380,6 @@ ImGuiIO::ImGuiIO()
     FontAllowUserScaling = false;
     DisplayFramebufferScale = ImVec2(1.0f, 1.0f);
 
-    MouseDoubleClickTime = 0.30f;
-    MouseDoubleClickMaxDist = 6.0f;
-    MouseDragThreshold = 6.0f;
-    KeyRepeatDelay = 0.275f;
-    KeyRepeatRate = 0.050f;
-
     // Miscellaneous options
     MouseDrawCursor = false;
 #ifdef __APPLE__
@@ -1403,6 +1397,13 @@ ImGuiIO::ImGuiIO()
     ConfigMemoryCompactTimer = 60.0f;
     ConfigDebugBeginReturnValueOnce = false;
     ConfigDebugBeginReturnValueLoop = false;
+
+    // Inputs Behaviors
+    MouseDoubleClickTime = 0.30f;
+    MouseDoubleClickMaxDist = 6.0f;
+    MouseDragThreshold = 6.0f;
+    KeyRepeatDelay = 0.275f;
+    KeyRepeatRate = 0.050f;
 
     // Platform Functions
     // Note: Initialize() will setup default clipboard/ime handlers.
@@ -4229,8 +4230,9 @@ bool ImGui::IsItemHovered(ImGuiHoveredFlags flags)
         // Test if another item is active (e.g. being dragged)
         const ImGuiID id = g.LastItemData.ID;
         if ((flags & ImGuiHoveredFlags_AllowWhenBlockedByActiveItem) == 0)
-            if (g.ActiveId != 0 && g.ActiveId != id && !g.ActiveIdAllowOverlap && g.ActiveId != window->MoveId)
-                return false;
+            if (g.ActiveId != 0 && g.ActiveId != id && !g.ActiveIdAllowOverlap)
+                if (g.ActiveId != window->MoveId)
+                    return false;
 
         // Test if interactions on this window are blocked by an active popup or modal.
         // The ImGuiHoveredFlags_AllowWhenBlockedByPopup flag will be tested here.
@@ -4242,7 +4244,8 @@ bool ImGui::IsItemHovered(ImGuiHoveredFlags flags)
             return false;
 
         // Special handling for calling after Begin() which represent the title bar or tab.
-        // When the window is skipped/collapsed (SkipItems==true) that last item will never be overwritten so we need to detect the case.
+        // When the window is skipped/collapsed (SkipItems==true) that last item (always ->MoveId submitted by Begin)
+        // will never be overwritten so we need to detect the case.
         if (id == window->MoveId && window->WriteAccessed)
             return false;
 
@@ -4258,7 +4261,7 @@ bool ImGui::IsItemHovered(ImGuiHoveredFlags flags)
     const float delay = CalcDelayFromHoveredFlags(flags);
     if (delay > 0.0f || (flags & ImGuiHoveredFlags_Stationary))
     {
-        ImGuiID hover_delay_id = (g.LastItemData.ID != 0) ? g.LastItemData.ID : window->GetIDFromRectangle(g.LastItemData.Rect);
+        ImGuiID hover_delay_id = (g.LastItemData.ID != 0) ? g.LastItemData.ID : window->GetIDFromPos(g.LastItemData.Rect.Min);
         if ((flags & ImGuiHoveredFlags_NoSharedDelay) && (g.HoverItemDelayIdPreviousFrame != hover_delay_id))
             g.HoverItemDelayTimer = 0.0f;
         g.HoverItemDelayId = hover_delay_id;
@@ -4640,9 +4643,10 @@ void ImGui::UpdateMouseMovingWindowEndFrame()
             StartMouseMovingWindow(g.HoveredWindow); //-V595
 
             // Cancel moving if clicked outside of title bar
-            if (g.IO.ConfigWindowsMoveFromTitleBarOnly && !(root_window->Flags & ImGuiWindowFlags_NoTitleBar))
-                if (!root_window->TitleBarRect().Contains(g.IO.MouseClickedPos[0]))
-                    g.MovingWindow = NULL;
+            if (g.IO.ConfigWindowsMoveFromTitleBarOnly)
+                if (!(root_window->Flags & ImGuiWindowFlags_NoTitleBar))
+                    if (!root_window->TitleBarRect().Contains(g.IO.MouseClickedPos[0]))
+                        g.MovingWindow = NULL;
 
             // Cancel moving if clicked over an item which was disabled or inhibited by popups (note that we know HoveredId == 0 already)
             if (g.HoveredIdIsDisabled)
@@ -5200,7 +5204,7 @@ static void ImGui::RenderDimmedBackgrounds()
     }
     else if (dim_bg_for_window_list)
     {
-        // Draw dimming behind CTRL+Tab target window
+        // Draw dimming behind CTRL+Tab target window and behind CTRL+Tab UI window
         RenderDimmedBackgroundBehindWindow(g.NavWindowingTargetAnim, GetColorU32(ImGuiCol_NavWindowingDimBg, g.DimBgRatio));
 
         // Draw border around CTRL+Tab target window
@@ -5325,9 +5329,6 @@ void ImGui::Render()
     g.IO.MetricsRenderWindows = 0;
     CallContextHooks(&g, ImGuiContextHookType_RenderPre);
 
-    // Draw modal/window whitening backgrounds
-    RenderDimmedBackgrounds();
-
     // Add background ImDrawList (for each active viewport)
     for (ImGuiViewportP* viewport : g.Viewports)
     {
@@ -5335,6 +5336,9 @@ void ImGui::Render()
         if (viewport->BgFgDrawLists[0] != NULL)
             AddDrawListToDrawDataEx(&viewport->DrawDataP, viewport->DrawDataBuilder.Layers[0], GetBackgroundDrawList(viewport));
     }
+
+    // Draw modal/window whitening backgrounds
+    RenderDimmedBackgrounds();
 
     // Add ImDrawList to render
     ImGuiWindow* windows_to_render_top_most[2];
@@ -8363,6 +8367,16 @@ ImGuiID ImGuiWindow::GetID(int n)
 }
 
 // This is only used in rare/specific situations to manufacture an ID out of nowhere.
+// FIXME: Consider instead storing last non-zero ID + count of successive zero-ID, and combine those?
+ImGuiID ImGuiWindow::GetIDFromPos(const ImVec2& p_abs)
+{
+    ImGuiID seed = IDStack.back();
+    ImVec2 p_rel = ImGui::WindowPosAbsToRel(this, p_abs);
+    ImGuiID id = ImHashData(&p_rel, sizeof(p_rel), seed);
+    return id;
+}
+
+// "
 ImGuiID ImGuiWindow::GetIDFromRectangle(const ImRect& r_abs)
 {
     ImGuiID seed = IDStack.back();
@@ -11370,6 +11384,9 @@ void ImGui::ClosePopupToLevel(int remaining, bool restore_focus_to_window_under_
     ImGuiContext& g = *GImGui;
     IMGUI_DEBUG_LOG_POPUP("[popup] ClosePopupToLevel(%d), restore_under=%d\n", remaining, restore_focus_to_window_under_popup);
     IM_ASSERT(remaining >= 0 && remaining < g.OpenPopupStack.Size);
+    if (g.DebugLogFlags & ImGuiDebugLogFlags_EventPopup)
+        for (int n = remaining; n < g.OpenPopupStack.Size; n++)
+            IMGUI_DEBUG_LOG_POPUP("[popup] - Closing PopupID 0x%08X Window \"%s\"\n", g.OpenPopupStack[n].PopupId, g.OpenPopupStack[n].Window ? g.OpenPopupStack[n].Window->Name : NULL);
 
     // Trim open popup stack
     ImGuiPopupData prev_popup = g.OpenPopupStack[remaining];
@@ -13165,9 +13182,11 @@ static void ImGui::NavUpdateWindowing()
 
     // Keyboard: Press and Release ALT to toggle menu layer
     const ImGuiKey windowing_toggle_keys[] = { ImGuiKey_LeftAlt, ImGuiKey_RightAlt };
+    bool windowing_toggle_layer_start = false;
     for (ImGuiKey windowing_toggle_key : windowing_toggle_keys)
         if (nav_keyboard_active && IsKeyPressed(windowing_toggle_key, 0, ImGuiKeyOwner_NoOwner))
         {
+            windowing_toggle_layer_start = true;
             g.NavWindowingToggleLayer = true;
             g.NavWindowingToggleKey = windowing_toggle_key;
             g.NavInputSource = ImGuiInputSource_Keyboard;
@@ -13181,7 +13200,9 @@ static void ImGui::NavUpdateWindowing()
         // We cancel toggling nav layer if an owner has claimed the key.
         if (io.InputQueueCharacters.Size > 0 || io.KeyCtrl || io.KeyShift || io.KeySuper)
             g.NavWindowingToggleLayer = false;
-        if (TestKeyOwner(g.NavWindowingToggleKey, ImGuiKeyOwner_NoOwner) == false || TestKeyOwner(ImGuiMod_Alt, ImGuiKeyOwner_NoOwner) == false)
+        else if (windowing_toggle_layer_start == false && g.LastKeyboardKeyPressTime == g.Time)
+            g.NavWindowingToggleLayer = false;
+        else if (TestKeyOwner(g.NavWindowingToggleKey, ImGuiKeyOwner_NoOwner) == false || TestKeyOwner(ImGuiMod_Alt, ImGuiKeyOwner_NoOwner) == false)
             g.NavWindowingToggleLayer = false;
 
         // Apply layer toggle on Alt release
@@ -14332,10 +14353,11 @@ static void ImGui::UpdateViewportsNewFrame()
 
     for (ImGuiViewportP* viewport : g.Viewports)
     {
-        // Lock down space taken by menu bars and status bars, reset the offset for fucntions like BeginMainMenuBar() to alter them again.
-        viewport->WorkOffsetMin = viewport->BuildWorkOffsetMin;
-        viewport->WorkOffsetMax = viewport->BuildWorkOffsetMax;
-        viewport->BuildWorkOffsetMin = viewport->BuildWorkOffsetMax = ImVec2(0.0f, 0.0f);
+        // Lock down space taken by menu bars and status bars
+        // Setup initial value for functions like BeginMainMenuBar(), DockSpaceOverViewport() etc.
+        viewport->WorkInsetMin = viewport->BuildWorkInsetMin;
+        viewport->WorkInsetMax = viewport->BuildWorkInsetMax;
+        viewport->BuildWorkInsetMin = viewport->BuildWorkInsetMax = ImVec2(0.0f, 0.0f);
         viewport->UpdateWorkRect();
     }
 }
@@ -15759,9 +15781,9 @@ void ImGui::DebugNodeViewport(ImGuiViewportP* viewport)
     if (open)
     {
         ImGuiWindowFlags flags = viewport->Flags;
-        BulletText("Main Pos: (%.0f,%.0f), Size: (%.0f,%.0f)\nWorkArea Offset Left: %.0f Top: %.0f, Right: %.0f, Bottom: %.0f",
+        BulletText("Main Pos: (%.0f,%.0f), Size: (%.0f,%.0f)\nWorkArea Inset Left: %.0f Top: %.0f, Right: %.0f, Bottom: %.0f",
             viewport->Pos.x, viewport->Pos.y, viewport->Size.x, viewport->Size.y,
-            viewport->WorkOffsetMin.x, viewport->WorkOffsetMin.y, viewport->WorkOffsetMax.x, viewport->WorkOffsetMax.y);
+            viewport->WorkInsetMin.x, viewport->WorkInsetMin.y, viewport->WorkInsetMax.x, viewport->WorkInsetMax.y);
         BulletText("Flags: 0x%04X =%s%s%s", viewport->Flags,
             (flags & ImGuiViewportFlags_IsPlatformWindow)  ? " IsPlatformWindow"  : "",
             (flags & ImGuiViewportFlags_IsPlatformMonitor) ? " IsPlatformMonitor" : "",
