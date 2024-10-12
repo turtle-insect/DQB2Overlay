@@ -1,4 +1,4 @@
-// dear imgui, v1.91.3 WIP
+// dear imgui, v1.91.4 WIP
 // (widgets code)
 
 /*
@@ -482,9 +482,14 @@ void ImGui::BulletTextV(const char* fmt, va_list args)
 //   Frame N + RepeatDelay + RepeatRate*N   true                     true              -                   true
 //-------------------------------------------------------------------------------------------------------------------------------------------------
 
-// FIXME: For refactor we could output flags, incl mouse hovered vs nav keyboard vs nav triggered etc.
-// And better standardize how widgets use 'GetColor32((held && hovered) ? ... : hovered ? ...)' vs 'GetColor32(held ? ... : hovered ? ...);'
-// For mouse feedback we typically prefer the 'held && hovered' test, but for nav feedback not always. Outputting hovered=true on Activation may be misleading.
+// - FIXME: For refactor we could output flags, incl mouse hovered vs nav keyboard vs nav triggered etc.
+//   And better standardize how widgets use 'GetColor32((held && hovered) ? ... : hovered ? ...)' vs 'GetColor32(held ? ... : hovered ? ...);'
+//   For mouse feedback we typically prefer the 'held && hovered' test, but for nav feedback not always. Outputting hovered=true on Activation may be misleading.
+// - Since v1.91.2 (Sept 2024) we included io.ConfigDebugHighlightIdConflicts feature.
+//   One idiom which was previously valid which will now emit a warning is when using multiple overlayed ButtonBehavior()
+//   with same ID and different MouseButton (see #8030). You can fix it by:
+//       (1) switching to use a single ButtonBehavior() with multiple _MouseButton flags.
+//    or (2) surrounding those calls with PushItemFlag(ImGuiItemFlags_AllowDuplicateId, true); ... PopItemFlag()
 bool ImGui::ButtonBehavior(const ImRect& bb, ImGuiID id, bool* out_hovered, bool* out_held, ImGuiButtonFlags flags)
 {
     ImGuiContext& g = *GImGui;
@@ -1117,7 +1122,7 @@ bool ImGui::ImageButton(const char* str_id, ImTextureID user_texture_id, const I
 bool ImGui::ImageButton(ImTextureID user_texture_id, const ImVec2& size, const ImVec2& uv0, const ImVec2& uv1, int frame_padding, const ImVec4& bg_col, const ImVec4& tint_col)
 {
     // Default to using texture ID as ID. User can still push string/integer prefixes.
-    PushID((void*)(intptr_t)user_texture_id);
+    PushID((ImTextureID)(intptr_t)user_texture_id);
     if (frame_padding >= 0)
         PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2((float)frame_padding, (float)frame_padding));
     bool ret = ImageButton("", user_texture_id, size, uv0, uv1, bg_col, tint_col);
@@ -2351,6 +2356,12 @@ bool ImGui::DataTypeClamp(ImGuiDataType data_type, void* p_data, const void* p_m
     return false;
 }
 
+bool ImGui::DataTypeIsZero(ImGuiDataType data_type, const void* p_data)
+{
+    ImGuiContext& g = *GImGui;
+    return DataTypeCompare(data_type, p_data, &g.DataTypeZeroValue) == 0;
+}
+
 static float GetMinimumStepAtDecimalPrecision(int decimal_precision)
 {
     static const float min_steps[10] = { 1.0f, 0.1f, 0.01f, 0.001f, 0.0001f, 0.00001f, 0.000001f, 0.0000001f, 0.00000001f, 0.000000001f };
@@ -2409,7 +2420,7 @@ bool ImGui::DragBehaviorT(ImGuiDataType data_type, TYPE* v, float v_speed, const
 {
     ImGuiContext& g = *GImGui;
     const ImGuiAxis axis = (flags & ImGuiSliderFlags_Vertical) ? ImGuiAxis_Y : ImGuiAxis_X;
-    const bool is_bounded = (v_min < v_max);
+    const bool is_bounded = (v_min < v_max) || ((v_min == v_max) && (v_min != 0.0f || (flags & ImGuiSliderFlags_ClampZeroRange)));
     const bool is_wrapped = is_bounded && (flags & ImGuiSliderFlags_WrapAround);
     const bool is_logarithmic = (flags & ImGuiSliderFlags_Logarithmic) != 0;
     const bool is_floating_point = (data_type == ImGuiDataType_Float) || (data_type == ImGuiDataType_Double);
@@ -2632,9 +2643,17 @@ bool ImGui::DragScalar(const char* label, ImGuiDataType data_type, void* p_data,
 
     if (temp_input_is_active)
     {
-        // Only clamp CTRL+Click input when ImGuiSliderFlags_AlwaysClamp is set
-        const bool is_clamp_input = (flags & ImGuiSliderFlags_AlwaysClamp) != 0 && (p_min == NULL || p_max == NULL || DataTypeCompare(data_type, p_min, p_max) < 0);
-        return TempInputScalar(frame_bb, id, label, data_type, p_data, format, is_clamp_input ? p_min : NULL, is_clamp_input ? p_max : NULL);
+        // Only clamp CTRL+Click input when ImGuiSliderFlags_ClampOnInput is set (generally via ImGuiSliderFlags_AlwaysClamp)
+        bool clamp_enabled = false;
+        if ((flags & ImGuiSliderFlags_ClampOnInput) && (p_min != NULL || p_max != NULL))
+        {
+            const int clamp_range_dir = (p_min != NULL && p_max != NULL) ? DataTypeCompare(data_type, p_min, p_max) : 0; // -1 when *p_min < *p_max, == 0 when *p_min == *p_max
+            if (p_min == NULL || p_max == NULL || clamp_range_dir < 0)
+                clamp_enabled = true;
+            else if (clamp_range_dir == 0)
+                clamp_enabled = DataTypeIsZero(data_type, p_min) ? ((flags & ImGuiSliderFlags_ClampZeroRange) != 0) : true;
+        }
+        return TempInputScalar(frame_bb, id, label, data_type, p_data, format, clamp_enabled ? p_min : NULL, clamp_enabled ? p_max : NULL);
     }
 
     // Draw frame
@@ -3214,9 +3233,9 @@ bool ImGui::SliderScalar(const char* label, ImGuiDataType data_type, void* p_dat
 
     if (temp_input_is_active)
     {
-        // Only clamp CTRL+Click input when ImGuiSliderFlags_AlwaysClamp is set
-        const bool is_clamp_input = (flags & ImGuiSliderFlags_AlwaysClamp) != 0;
-        return TempInputScalar(frame_bb, id, label, data_type, p_data, format, is_clamp_input ? p_min : NULL, is_clamp_input ? p_max : NULL);
+        // Only clamp CTRL+Click input when ImGuiSliderFlags_ClampOnInput is set (generally via ImGuiSliderFlags_AlwaysClamp)
+        const bool clamp_enabled = (flags & ImGuiSliderFlags_ClampOnInput) != 0;
+        return TempInputScalar(frame_bb, id, label, data_type, p_data, format, clamp_enabled ? p_min : NULL, clamp_enabled ? p_max : NULL);
     }
 
     // Draw frame
@@ -4547,15 +4566,19 @@ bool ImGui::InputTextEx(const char* label, const char* hint, char* buf, int buf_
     if (g.ActiveId == id)
     {
         // Declare some inputs, the other are registered and polled via Shortcut() routing system.
+        // FIXME: The reason we don't use Shortcut() is we would need a routing flag to specify multiple mods, or to all mods combinaison into individual shortcuts.
+        const ImGuiKey always_owned_keys[] = { ImGuiKey_LeftArrow, ImGuiKey_RightArrow, ImGuiKey_Enter, ImGuiKey_KeypadEnter, ImGuiKey_Delete, ImGuiKey_Backspace, ImGuiKey_Home, ImGuiKey_End };
+        for (ImGuiKey key : always_owned_keys)
+            SetKeyOwner(key, id);
         if (user_clicked)
             SetKeyOwner(ImGuiKey_MouseLeft, id);
         g.ActiveIdUsingNavDirMask |= (1 << ImGuiDir_Left) | (1 << ImGuiDir_Right);
         if (is_multiline || (flags & ImGuiInputTextFlags_CallbackHistory))
+        {
             g.ActiveIdUsingNavDirMask |= (1 << ImGuiDir_Up) | (1 << ImGuiDir_Down);
-        SetKeyOwner(ImGuiKey_Enter, id);
-        SetKeyOwner(ImGuiKey_KeypadEnter, id);
-        SetKeyOwner(ImGuiKey_Home, id);
-        SetKeyOwner(ImGuiKey_End, id);
+            SetKeyOwner(ImGuiKey_UpArrow, id);
+            SetKeyOwner(ImGuiKey_DownArrow, id);
+        }
         if (is_multiline)
         {
             SetKeyOwner(ImGuiKey_PageUp, id);

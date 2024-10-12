@@ -1,4 +1,4 @@
-// dear imgui, v1.91.3 WIP
+// dear imgui, v1.91.4 WIP
 // (main code and documentation)
 
 // Help:
@@ -430,6 +430,19 @@ CODE
  When you are not sure about an old symbol or function name, try using the Search/Find function of your IDE to look for comments or references in all imgui files.
  You can read releases logs https://github.com/ocornut/imgui/releases for more details.
 
+ - 2024/10/10 (1.91.4) - the typedef for ImTextureID now defaults to ImU64 instead of void*. (#1641)
+                         this removes the requirement to redefine it for backends which are e.g. storing descriptor sets or other 64-bits structures when building on 32-bits archs. It therefore simplify various building scripts/helpers.
+                         you may have compile-time issues if you were casting to 'void*' instead of 'ImTextureID' when passing your types to functions taking ImTextureID values, e.g. ImGui::Image().
+                         in doubt it is almost always better to do an intermediate intptr_t cast, since it allows casting any pointer/integer type without warning:
+                            - May warn:    ImGui::Image((void*)MyTextureData, ...);
+                            - May warn:    ImGui::Image((void*)(intptr_t)MyTextureData, ...);
+                            - Won't warn:  ImGui::Image((ImTextureID)(intptr_t)MyTextureData), ...);
+  -                      note that you can always define ImTextureID to be your own high-level structures (with dedicated constructors) if you like.
+ - 2024/10/03 (1.91.3) - drags: treat v_min==v_max as a valid clamping range when != 0.0f. Zero is a still special value due to legacy reasons, unless using ImGuiSliderFlags_ClampZeroRange. (#7968, #3361, #76)
+                       - drags: extended behavior of ImGuiSliderFlags_AlwaysClamp to include _ClampZeroRange. It considers v_min==v_max==0.0f as a valid clamping range (aka edits not allowed).
+                         although unlikely, it you wish to only clamp on text input but want v_min==v_max==0.0f to mean unclamped drags, you can use _ClampOnInput instead of _AlwaysClamp. (#7968, #3361, #76)
+ - 2024/09/10 (1.91.2) - internals: using multiple overlayed ButtonBehavior() with same ID will now have io.ConfigDebugHighlightIdConflicts=true feature emit a warning. (#8030)
+                         it was one of the rare case where using same ID is legal. workarounds: (1) use single ButtonBehavior() call with multiple _MouseButton flags, or (2) surround the calls with PushItemFlag(ImGuiItemFlags_AllowDuplicateId, true); ... PopItemFlag()
  - 2024/08/23 (1.91.1) - renamed ImGuiChildFlags_Border to ImGuiChildFlags_Borders for consistency. kept inline redirection flag.
  - 2024/08/22 (1.91.1) - moved some functions from ImGuiIO to ImGuiPlatformIO structure:
                             - io.GetClipboardTextFn         -> platform_io.Platform_GetClipboardTextFn + changed 'void* user_data' to 'ImGuiContext* ctx'. Pull your user data from platform_io.ClipboardUserData.
@@ -4985,9 +4998,14 @@ void ImGui::UpdateHoveredWindowAndCaptureFlags()
     }
 
     // Update io.WantCaptureKeyboard for the user application (true = dispatch keyboard info to Dear ImGui only, false = dispatch keyboard info to Dear ImGui + underlying app)
-    io.WantCaptureKeyboard = (g.ActiveId != 0) || (modal_window != NULL);
-    if (io.NavActive && (io.ConfigFlags & ImGuiConfigFlags_NavEnableKeyboard) && !(io.ConfigFlags & ImGuiConfigFlags_NavNoCaptureKeyboard))
-        io.WantCaptureKeyboard = true;
+    io.WantCaptureKeyboard = false;
+    if ((io.ConfigFlags & ImGuiConfigFlags_NoKeyboard) == 0)
+    {
+        if ((g.ActiveId != 0) || (modal_window != NULL))
+            io.WantCaptureKeyboard = true;
+        else if (io.NavActive && (io.ConfigFlags & ImGuiConfigFlags_NavEnableKeyboard) && !(io.ConfigFlags & ImGuiConfigFlags_NavNoCaptureKeyboard))
+            io.WantCaptureKeyboard = true;
+    }
     if (g.WantCaptureKeyboardNextFrame != -1) // Manual override
         io.WantCaptureKeyboard = (g.WantCaptureKeyboardNextFrame != 0);
 
@@ -10653,9 +10671,10 @@ void ImGui::ErrorCheckEndFrameFinalizeErrorTooltip()
         Text("Programmer error: %d visible items with conflicting ID!", g.DebugDrawIdConflictsCount);
         BulletText("Code should use PushID()/PopID() in loops, or append \"##xx\" to same-label identifiers!");
         BulletText("Empty label e.g. Button(\"\") == same ID as parent widget/node. Use Button(\"##xx\") instead!");
+        //BulletText("Code intending to use duplicate ID may use e.g. PushItemFlag(ImGuiItemFlags_AllowDuplicateId, true); ... PopItemFlag()"); // Not making this too visible for fear of it being abused.
         BulletText("Set io.ConfigDebugDetectIdConflicts=false to disable this warning in non-programmers builds.");
         Separator();
-        Text("(Hold CTRL and: use");
+        Text("(Hold CTRL to: use");
         SameLine();
         if (SmallButton("Item Picker"))
             DebugStartItemPicker();
@@ -10670,7 +10689,7 @@ void ImGui::ErrorCheckEndFrameFinalizeErrorTooltip()
     if (g.ErrorCountCurrentFrame > 0 && BeginErrorTooltip()) // Amend at end of frame
     {
         Separator();
-        Text("(Hold CTRL and:");
+        Text("(Hold CTRL to:");
         SameLine();
         if (SmallButton("Enable Asserts"))
             g.IO.ConfigErrorRecoveryEnableAssert = true;
