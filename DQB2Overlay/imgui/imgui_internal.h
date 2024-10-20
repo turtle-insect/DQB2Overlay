@@ -1,4 +1,4 @@
-// dear imgui, v1.91.4 WIP
+// dear imgui, v1.91.4
 // (internal structures/api)
 
 // You may use this file to debug, understand or extend Dear ImGui features but we don't provide any guarantee of forward compatibility.
@@ -141,7 +141,7 @@ struct ImGuiLocEntry;               // A localization entry.
 struct ImGuiMenuColumns;            // Simple column measurement, currently used for MenuItem() only
 struct ImGuiMultiSelectState;       // Multi-selection persistent state (for focused selection).
 struct ImGuiMultiSelectTempData;    // Multi-selection temporary state (while traversing).
-struct ImGuiNavItemData;            // Result of a gamepad/keyboard directional navigation move query result
+struct ImGuiNavItemData;            // Result of a keyboard/gamepad directional navigation move query result
 struct ImGuiMetricsConfig;          // Storage for ShowMetricsWindow() and DebugNodeXXX() functions
 struct ImGuiNextWindowData;         // Storage for SetNextWindow** functions
 struct ImGuiNextItemData;           // Storage for SetNextItem** functions
@@ -177,7 +177,7 @@ typedef int ImGuiDebugLogFlags;         // -> enum ImGuiDebugLogFlags_      // F
 typedef int ImGuiFocusRequestFlags;     // -> enum ImGuiFocusRequestFlags_  // Flags: for FocusWindow()
 typedef int ImGuiItemStatusFlags;       // -> enum ImGuiItemStatusFlags_    // Flags: for g.LastItemData.StatusFlags
 typedef int ImGuiOldColumnFlags;        // -> enum ImGuiOldColumnFlags_     // Flags: for BeginColumns()
-typedef int ImGuiNavHighlightFlags;     // -> enum ImGuiNavHighlightFlags_  // Flags: for RenderNavHighlight()
+typedef int ImGuiNavRenderCursorFlags;  // -> enum ImGuiNavRenderCursorFlags_//Flags: for RenderNavCursor()
 typedef int ImGuiNavMoveFlags;          // -> enum ImGuiNavMoveFlags_       // Flags: for navigation requests
 typedef int ImGuiNextItemDataFlags;     // -> enum ImGuiNextItemDataFlags_  // Flags: for SetNextItemXXX() functions
 typedef int ImGuiNextWindowDataFlags;   // -> enum ImGuiNextWindowDataFlags_// Flags: for SetNextWindowXXX() functions
@@ -833,7 +833,7 @@ enum ImGuiItemFlagsPrivate_
     ImGuiItemFlags_MixedValue               = 1 << 12, // false     // [BETA] Represent a mixed/indeterminate value, generally multi-selection where values differ. Currently only supported by Checkbox() (later should support all sorts of widgets)
     ImGuiItemFlags_NoWindowHoverableCheck   = 1 << 13, // false     // Disable hoverable check in ItemHoverable()
     ImGuiItemFlags_AllowOverlap             = 1 << 14, // false     // Allow being overlapped by another widget. Not-hovered to Hovered transition deferred by a frame.
-    ImGuiItemFlags_NoNavDisableMouseHover   = 1 << 15, // false     // Nav keyboard/gamepad mode doesn't disable hover.
+    ImGuiItemFlags_NoNavDisableMouseHover   = 1 << 15, // false     // Nav keyboard/gamepad mode doesn't disable hover highlight (behave as if NavHighlightItemUnderNav==false).
     ImGuiItemFlags_NoMarkEdited             = 1 << 16, // false     // Skip calling MarkItemEdited()
 
     // Controlled by widget code
@@ -1546,12 +1546,18 @@ enum ImGuiScrollFlags_
     ImGuiScrollFlags_MaskY_                 = ImGuiScrollFlags_KeepVisibleEdgeY | ImGuiScrollFlags_KeepVisibleCenterY | ImGuiScrollFlags_AlwaysCenterY,
 };
 
-enum ImGuiNavHighlightFlags_
+enum ImGuiNavRenderCursorFlags_
 {
-    ImGuiNavHighlightFlags_None             = 0,
-    ImGuiNavHighlightFlags_Compact          = 1 << 1,       // Compact highlight, no padding
-    ImGuiNavHighlightFlags_AlwaysDraw       = 1 << 2,       // Draw rectangular highlight if (g.NavId == id) _even_ when using the mouse.
-    ImGuiNavHighlightFlags_NoRounding       = 1 << 3,
+    ImGuiNavRenderCursorFlags_None          = 0,
+    ImGuiNavRenderCursorFlags_Compact       = 1 << 1,       // Compact highlight, no padding/distance from focused item
+    ImGuiNavRenderCursorFlags_AlwaysDraw    = 1 << 2,       // Draw rectangular highlight if (g.NavId == id) even when g.NavCursorVisible == false, aka even when using the mouse.
+    ImGuiNavRenderCursorFlags_NoRounding    = 1 << 3,
+#ifndef IMGUI_DISABLE_OBSOLETE_FUNCTIONS
+    ImGuiNavHighlightFlags_None             = ImGuiNavRenderCursorFlags_None,       // Renamed in 1.91.4
+    ImGuiNavHighlightFlags_Compact          = ImGuiNavRenderCursorFlags_Compact,    // Renamed in 1.91.4
+    ImGuiNavHighlightFlags_AlwaysDraw       = ImGuiNavRenderCursorFlags_AlwaysDraw, // Renamed in 1.91.4
+    ImGuiNavHighlightFlags_NoRounding       = ImGuiNavRenderCursorFlags_NoRounding, // Renamed in 1.91.4
+#endif
 };
 
 enum ImGuiNavMoveFlags_
@@ -1572,7 +1578,7 @@ enum ImGuiNavMoveFlags_
     ImGuiNavMoveFlags_IsPageMove            = 1 << 11,  // Identify a PageDown/PageUp request.
     ImGuiNavMoveFlags_Activate              = 1 << 12,  // Activate/select target item.
     ImGuiNavMoveFlags_NoSelect              = 1 << 13,  // Don't trigger selection by not setting g.NavJustMovedTo
-    ImGuiNavMoveFlags_NoSetNavHighlight     = 1 << 14,  // Do not alter the visible state of keyboard vs mouse nav highlight
+    ImGuiNavMoveFlags_NoSetNavCursorVisible = 1 << 14,  // Do not alter the nav cursor visible state
     ImGuiNavMoveFlags_NoClearActiveId       = 1 << 15,  // (Experimental) Do not clear active id when applying move result
 };
 
@@ -1600,7 +1606,7 @@ struct ImGuiNavItemData
     void Clear()        { Window = NULL; ID = FocusScopeId = 0; ItemFlags = 0; SelectionUserData = -1; DistBox = DistCenter = DistAxial = FLT_MAX; }
 };
 
-// Storage for PushFocusScope()
+// Storage for PushFocusScope(), g.FocusScopeStack[], g.NavFocusRoute[]
 struct ImGuiFocusScopeData
 {
     ImGuiID             ID;
@@ -2126,9 +2132,15 @@ struct ImGuiContext
     // Viewports
     ImVector<ImGuiViewportP*> Viewports;                        // Active viewports (Size==1 in 'master' branch). Each viewports hold their copy of ImDrawData.
 
-    // Gamepad/keyboard Navigation
-    ImGuiWindow*            NavWindow;                          // Focused window for navigation. Could be called 'FocusedWindow'
+    // Keyboard/Gamepad Navigation
+    bool                    NavCursorVisible;                   // Nav focus cursor/rectangle is visible? We hide it after a mouse click. We show it after a nav move.
+    bool                    NavHighlightItemUnderNav;           // Disable mouse hovering highlight. Highlight navigation focused item instead of mouse hovered item.
+    //bool                  NavDisableHighlight;                // Old name for !g.NavCursorVisible before 1.91.4 (2024/10/18). OPPOSITE VALUE (g.NavDisableHighlight == !g.NavCursorVisible)
+    //bool                  NavDisableMouseHover;               // Old name for g.NavHighlightItemUnderNav before 1.91.1 (2024/10/18) this was called When user starts using keyboard/gamepad, we hide mouse hovering highlight until mouse is touched again.
+    bool                    NavMousePosDirty;                   // When set we will update mouse position if io.ConfigNavMoveSetMousePos is set (not enabled by default)
+    bool                    NavIdIsAlive;                       // Nav widget has been seen this frame ~~ NavRectRel is valid
     ImGuiID                 NavId;                              // Focused item for navigation
+    ImGuiWindow*            NavWindow;                          // Focused window for navigation. Could be called 'FocusedWindow'
     ImGuiID                 NavFocusScopeId;                    // Focused focus scope (e.g. selection code often wants to "clear other items" when landing on an item of the same scope)
     ImGuiNavLayer           NavLayer;                           // Focused layer (main scrolling layer, or menu/title bar layer)
     ImGuiID                 NavActivateId;                      // ~~ (g.ActiveId == 0) && (IsKeyPressed(ImGuiKey_Space) || IsKeyDown(ImGuiKey_Enter) || IsKeyPressed(ImGuiKey_NavGamepadActivate)) ? NavId : 0, also set when calling ActivateItem()
@@ -2142,10 +2154,7 @@ struct ImGuiContext
     ImGuiActivateFlags      NavNextActivateFlags;
     ImGuiInputSource        NavInputSource;                     // Keyboard or Gamepad mode? THIS CAN ONLY BE ImGuiInputSource_Keyboard or ImGuiInputSource_Mouse
     ImGuiSelectionUserData  NavLastValidSelectionUserData;      // Last valid data passed to SetNextItemSelectionUser(), or -1. For current window. Not reset when focusing an item that doesn't have selection data.
-    bool                    NavIdIsAlive;                       // Nav widget has been seen this frame ~~ NavRectRel is valid
-    bool                    NavMousePosDirty;                   // When set we will update mouse position if io.ConfigNavMoveSetMousePos is set (not enabled by default)
-    bool                    NavDisableHighlight;                // When user starts using mouse, we hide gamepad/keyboard highlight (NB: but they are still available, which is why NavDisableHighlight isn't always != NavDisableMouseHover)
-    bool                    NavDisableMouseHover;               // When user starts using gamepad/keyboard, we hide mouse hovering highlight until mouse is touched again.
+    ImS8                    NavCursorHideFrames;
 
     // Navigation: Init & Move Requests
     bool                    NavAnyRequest;                      // ~~ NavMoveRequest || NavInitRequest this is to perform early out in ItemAdd()
@@ -3093,7 +3102,7 @@ namespace ImGui
     IMGUI_API bool          BeginComboPreview();
     IMGUI_API void          EndComboPreview();
 
-    // Gamepad/Keyboard Navigation
+    // Keyboard/Gamepad Navigation
     IMGUI_API void          NavInitWindow(ImGuiWindow* window, bool force_reinit);
     IMGUI_API void          NavInitRequestApplyResult();
     IMGUI_API bool          NavMoveRequestButNoResultYet();
@@ -3106,7 +3115,7 @@ namespace ImGui
     IMGUI_API void          NavMoveRequestTryWrapping(ImGuiWindow* window, ImGuiNavMoveFlags move_flags);
     IMGUI_API void          NavHighlightActivated(ImGuiID id);
     IMGUI_API void          NavClearPreferredPosForAxis(ImGuiAxis axis);
-    IMGUI_API void          NavRestoreHighlightAfterMove();
+    IMGUI_API void          SetNavCursorVisibleAfterMove();
     IMGUI_API void          NavUpdateCurrentWindowIsScrollPushableX();
     IMGUI_API void          SetNavWindow(ImGuiWindow* window);
     IMGUI_API void          SetNavID(ImGuiID id, ImGuiNavLayer nav_layer, ImGuiID focus_scope_id, const ImRect& rect_rel);
@@ -3223,6 +3232,8 @@ namespace ImGui
     IMGUI_API void          RenderDragDropTargetRect(const ImRect& bb, const ImRect& item_clip_rect);
 
     // Typing-Select API
+    // (provide Windows Explorer style "select items by typing partial name" + "cycle through items by typing same letter" feature)
+    // (this is currently not documented nor used by main library, but should work. See "widgets_typingselect" in imgui_test_suite for usage code. Please let us know if you use this!)
     IMGUI_API ImGuiTypingSelectRequest* GetTypingSelectRequest(ImGuiTypingSelectFlags flags = ImGuiTypingSelectFlags_None);
     IMGUI_API int           TypingSelectFindMatch(ImGuiTypingSelectRequest* req, int items_count, const char* (*get_item_name_func)(void*, int), void* user_data, int nav_item_idx);
     IMGUI_API int           TypingSelectFindNextSingleCharMatch(ImGuiTypingSelectRequest* req, int items_count, const char* (*get_item_name_func)(void*, int), void* user_data, int nav_item_idx);
@@ -3340,7 +3351,10 @@ namespace ImGui
     IMGUI_API void          RenderFrame(ImVec2 p_min, ImVec2 p_max, ImU32 fill_col, bool borders = true, float rounding = 0.0f);
     IMGUI_API void          RenderFrameBorder(ImVec2 p_min, ImVec2 p_max, float rounding = 0.0f);
     IMGUI_API void          RenderColorRectWithAlphaCheckerboard(ImDrawList* draw_list, ImVec2 p_min, ImVec2 p_max, ImU32 fill_col, float grid_step, ImVec2 grid_off, float rounding = 0.0f, ImDrawFlags flags = 0);
-    IMGUI_API void          RenderNavHighlight(const ImRect& bb, ImGuiID id, ImGuiNavHighlightFlags flags = ImGuiNavHighlightFlags_None); // Navigation highlight
+    IMGUI_API void          RenderNavCursor(const ImRect& bb, ImGuiID id, ImGuiNavRenderCursorFlags flags = ImGuiNavRenderCursorFlags_None); // Navigation highlight
+#ifndef IMGUI_DISABLE_OBSOLETE_FUNCTIONS
+    inline    void          RenderNavHighlight(const ImRect& bb, ImGuiID id, ImGuiNavRenderCursorFlags flags = ImGuiNavRenderCursorFlags_None) { RenderNavCursor(bb, id, flags); } // Renamed in 1.91.4
+#endif
     IMGUI_API const char*   FindRenderedTextEnd(const char* text, const char* text_end = NULL); // Find the optional ## from which we stop displaying text.
     IMGUI_API void          RenderMouseCursor(ImVec2 pos, float scale, ImGuiMouseCursor mouse_cursor, ImU32 col_fill, ImU32 col_border, ImU32 col_shadow);
 

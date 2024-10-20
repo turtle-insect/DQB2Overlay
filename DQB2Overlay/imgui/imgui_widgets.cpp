@@ -1,4 +1,4 @@
-// dear imgui, v1.91.4 WIP
+// dear imgui, v1.91.4
 // (widgets code)
 
 /*
@@ -619,13 +619,13 @@ bool ImGui::ButtonBehavior(const ImRect& bb, ImGuiID id, bool* out_hovered, bool
                     pressed = true;
         }
 
-        if (pressed)
-            g.NavDisableHighlight = true;
+        if (pressed && g.IO.ConfigNavCursorVisibleAuto)
+            g.NavCursorVisible = false;
     }
 
-    // Gamepad/Keyboard handling
+    // Keyboard/Gamepad navigation handling
     // We report navigated and navigation-activated items as hovered but we don't set g.HoveredId to not interfere with mouse.
-    if (g.NavId == id && !g.NavDisableHighlight && g.NavDisableMouseHover)
+    if (g.NavId == id && g.NavCursorVisible && g.NavHighlightItemUnderNav)
         if (!(flags & ImGuiButtonFlags_NoHoveredOnFocus))
             hovered = true;
     if (g.NavActivateDownId == id)
@@ -688,8 +688,8 @@ bool ImGui::ButtonBehavior(const ImRect& bb, ImGuiID id, bool* out_hovered, bool
                 }
                 ClearActiveID();
             }
-            if (!(flags & ImGuiButtonFlags_NoNavFocus))
-                g.NavDisableHighlight = true;
+            if (!(flags & ImGuiButtonFlags_NoNavFocus) && g.IO.ConfigNavCursorVisibleAuto)
+                g.NavCursorVisible = false;
         }
         else if (g.ActiveIdSource == ImGuiInputSource_Keyboard || g.ActiveIdSource == ImGuiInputSource_Gamepad)
         {
@@ -739,7 +739,7 @@ bool ImGui::ButtonEx(const char* label, const ImVec2& size_arg, ImGuiButtonFlags
 
     // Render
     const ImU32 col = GetColorU32((held && hovered) ? ImGuiCol_ButtonActive : hovered ? ImGuiCol_ButtonHovered : ImGuiCol_Button);
-    RenderNavHighlight(bb, id);
+    RenderNavCursor(bb, id);
     RenderFrame(bb.Min, bb.Max, col, true, style.FrameRounding);
 
     if (g.LogEnabled)
@@ -791,7 +791,7 @@ bool ImGui::InvisibleButton(const char* str_id, const ImVec2& size_arg, ImGuiBut
 
     bool hovered, held;
     bool pressed = ButtonBehavior(bb, id, &hovered, &held, flags);
-    RenderNavHighlight(bb, id);
+    RenderNavCursor(bb, id);
 
     IMGUI_TEST_ENGINE_ITEM_INFO(id, str_id, g.LastItemData.StatusFlags);
     return pressed;
@@ -817,7 +817,7 @@ bool ImGui::ArrowButtonEx(const char* str_id, ImGuiDir dir, ImVec2 size, ImGuiBu
     // Render
     const ImU32 bg_col = GetColorU32((held && hovered) ? ImGuiCol_ButtonActive : hovered ? ImGuiCol_ButtonHovered : ImGuiCol_Button);
     const ImU32 text_col = GetColorU32(ImGuiCol_Text);
-    RenderNavHighlight(bb, id);
+    RenderNavCursor(bb, id);
     RenderFrame(bb.Min, bb.Max, bg_col, true, g.Style.FrameRounding);
     RenderArrow(window->DrawList, bb.Min + ImVec2(ImMax(0.0f, (size.x - g.FontSize) * 0.5f), ImMax(0.0f, (size.y - g.FontSize) * 0.5f)), text_col, dir);
 
@@ -858,7 +858,7 @@ bool ImGui::CloseButton(ImGuiID id, const ImVec2& pos)
     ImU32 bg_col = GetColorU32(held ? ImGuiCol_ButtonActive : ImGuiCol_ButtonHovered);
     if (hovered)
         window->DrawList->AddRectFilled(bb.Min, bb.Max, bg_col);
-    RenderNavHighlight(bb, id, ImGuiNavHighlightFlags_Compact);
+    RenderNavCursor(bb, id, ImGuiNavRenderCursorFlags_Compact);
     ImU32 cross_col = GetColorU32(ImGuiCol_Text);
     ImVec2 cross_center = bb.GetCenter() - ImVec2(0.5f, 0.5f);
     float cross_extent = g.FontSize * 0.5f * 0.7071f - 1.0f;
@@ -885,7 +885,7 @@ bool ImGui::CollapseButton(ImGuiID id, const ImVec2& pos)
     ImU32 text_col = GetColorU32(ImGuiCol_Text);
     if (hovered || held)
         window->DrawList->AddRectFilled(bb.Min, bb.Max, bg_col);
-    RenderNavHighlight(bb, id, ImGuiNavHighlightFlags_Compact);
+    RenderNavCursor(bb, id, ImGuiNavRenderCursorFlags_Compact);
     RenderArrow(window->DrawList, bb.Min, text_col, window->Collapsed ? ImGuiDir_Right : ImGuiDir_Down, 1.0f);
 
     // Switch to moving the window after mouse is moved beyond the initial drag threshold
@@ -1092,7 +1092,7 @@ bool ImGui::ImageButtonEx(ImGuiID id, ImTextureID texture_id, const ImVec2& imag
 
     // Render
     const ImU32 col = GetColorU32((held && hovered) ? ImGuiCol_ButtonActive : hovered ? ImGuiCol_ButtonHovered : ImGuiCol_Button);
-    RenderNavHighlight(bb, id);
+    RenderNavCursor(bb, id);
     RenderFrame(bb.Min, bb.Max, col, true, ImClamp((float)ImMin(padding.x, padding.y), 0.0f, g.Style.FrameRounding));
     if (bg_col.w > 0.0f)
         window->DrawList->AddRectFilled(bb.Min + padding, bb.Max - padding, GetColorU32(bg_col));
@@ -1183,7 +1183,7 @@ bool ImGui::Checkbox(const char* label, bool* v)
     const bool mixed_value = (g.LastItemData.ItemFlags & ImGuiItemFlags_MixedValue) != 0;
     if (is_visible)
     {
-        RenderNavHighlight(total_bb, id);
+        RenderNavCursor(total_bb, id);
         RenderFrame(check_bb.Min, check_bb.Max, GetColorU32((held && hovered) ? ImGuiCol_FrameBgActive : hovered ? ImGuiCol_FrameBgHovered : ImGuiCol_FrameBg), true, style.FrameRounding);
         ImU32 check_col = GetColorU32(ImGuiCol_CheckMark);
         if (mixed_value)
@@ -1285,7 +1285,7 @@ bool ImGui::RadioButton(const char* label, bool active)
     if (pressed)
         MarkItemEdited(id);
 
-    RenderNavHighlight(total_bb, id);
+    RenderNavCursor(total_bb, id);
     const int num_segment = window->DrawList->_CalcCircleAutoSegmentCount(radius);
     window->DrawList->AddCircleFilled(center, radius, GetColorU32((held && hovered) ? ImGuiCol_FrameBgActive : hovered ? ImGuiCol_FrameBgHovered : ImGuiCol_FrameBg), num_segment);
     if (active)
@@ -1425,7 +1425,7 @@ bool ImGui::TextLink(const char* label)
 
     bool hovered, held;
     bool pressed = ButtonBehavior(bb, id, &hovered, &held);
-    RenderNavHighlight(bb, id, ImGuiNavHighlightFlags_None);
+    RenderNavCursor(bb, id);
 
     if (hovered)
         SetMouseCursor(ImGuiMouseCursor_Hand);
@@ -1856,7 +1856,7 @@ bool ImGui::BeginCombo(const char* label, const char* preview_value, ImGuiComboF
     // Render shape
     const ImU32 frame_col = GetColorU32(hovered ? ImGuiCol_FrameBgHovered : ImGuiCol_FrameBg);
     const float value_x2 = ImMax(bb.Min.x, bb.Max.x - arrow_size);
-    RenderNavHighlight(bb, id);
+    RenderNavCursor(bb, id);
     if (!(flags & ImGuiComboFlags_NoPreview))
         window->DrawList->AddRectFilled(bb.Min, ImVec2(value_x2, bb.Max.y), frame_col, style.FrameRounding, (flags & ImGuiComboFlags_NoArrowButton) ? ImDrawFlags_RoundCornersAll : ImDrawFlags_RoundCornersLeft);
     if (!(flags & ImGuiComboFlags_NoArrowButton))
@@ -2658,7 +2658,7 @@ bool ImGui::DragScalar(const char* label, ImGuiDataType data_type, void* p_data,
 
     // Draw frame
     const ImU32 frame_col = GetColorU32(g.ActiveId == id ? ImGuiCol_FrameBgActive : hovered ? ImGuiCol_FrameBgHovered : ImGuiCol_FrameBg);
-    RenderNavHighlight(frame_bb, id);
+    RenderNavCursor(frame_bb, id);
     RenderFrame(frame_bb.Min, frame_bb.Max, frame_col, true, style.FrameRounding);
 
     // Drag behavior
@@ -3049,14 +3049,14 @@ bool ImGui::SliderBehaviorT(const ImRect& bb, ImGuiID id, ImGuiDataType data_typ
                 const int decimal_precision = is_floating_point ? ImParseFormatPrecision(format, 3) : 0;
                 if (decimal_precision > 0)
                 {
-                    input_delta /= 100.0f;    // Gamepad/keyboard tweak speeds in % of slider bounds
+                    input_delta /= 100.0f; // Keyboard/Gamepad tweak speeds in % of slider bounds
                     if (tweak_slow)
                         input_delta /= 10.0f;
                 }
                 else
                 {
                     if ((v_range_f >= -100.0f && v_range_f <= 100.0f && v_range_f != 0.0f) || tweak_slow)
-                        input_delta = ((input_delta < 0.0f) ? -1.0f : +1.0f) / v_range_f; // Gamepad/keyboard tweak speeds in integer steps
+                        input_delta = ((input_delta < 0.0f) ? -1.0f : +1.0f) / v_range_f; // Keyboard/Gamepad tweak speeds in integer steps
                     else
                         input_delta /= 100.0f;
                 }
@@ -3240,7 +3240,7 @@ bool ImGui::SliderScalar(const char* label, ImGuiDataType data_type, void* p_dat
 
     // Draw frame
     const ImU32 frame_col = GetColorU32(g.ActiveId == id ? ImGuiCol_FrameBgActive : hovered ? ImGuiCol_FrameBgHovered : ImGuiCol_FrameBg);
-    RenderNavHighlight(frame_bb, id);
+    RenderNavCursor(frame_bb, id);
     RenderFrame(frame_bb.Min, frame_bb.Max, frame_col, true, g.Style.FrameRounding);
 
     // Slider behavior
@@ -3389,7 +3389,7 @@ bool ImGui::VSliderScalar(const char* label, const ImVec2& size, ImGuiDataType d
 
     // Draw frame
     const ImU32 frame_col = GetColorU32(g.ActiveId == id ? ImGuiCol_FrameBgActive : hovered ? ImGuiCol_FrameBgHovered : ImGuiCol_FrameBg);
-    RenderNavHighlight(frame_bb, id);
+    RenderNavCursor(frame_bb, id);
     RenderFrame(frame_bb.Min, frame_bb.Max, frame_col, true, g.Style.FrameRounding);
 
     // Slider behavior
@@ -4129,6 +4129,7 @@ ImGuiInputTextState::ImGuiInputTextState()
 {
     memset(this, 0, sizeof(*this));
     Stb = IM_NEW(ImStbTexteditState);
+    memset(Stb, 0, sizeof(*Stb));
 }
 
 ImGuiInputTextState::~ImGuiInputTextState()
@@ -4475,7 +4476,7 @@ bool ImGui::InputTextEx(const char* label, const char* hint, char* buf, int buf_
     bool hovered = ItemHoverable(frame_bb, id, g.LastItemData.ItemFlags | ImGuiItemFlags_NoNavDisableMouseHover);
     if (hovered)
         SetMouseCursor(ImGuiMouseCursor_TextInput);
-    if (hovered && g.NavDisableMouseHover)
+    if (hovered && g.NavHighlightItemUnderNav)
         hovered = false;
 
     // We are only allowed to access the state if we are already the active widget.
@@ -5101,7 +5102,7 @@ bool ImGui::InputTextEx(const char* label, const char* hint, char* buf, int buf_
     // Render frame
     if (!is_multiline)
     {
-        RenderNavHighlight(frame_bb, id);
+        RenderNavCursor(frame_bb, id);
         RenderFrame(frame_bb.Min, frame_bb.Max, GetColorU32(ImGuiCol_FrameBg), true, style.FrameRounding);
     }
 
@@ -6112,7 +6113,7 @@ bool ImGui::ColorButton(const char* desc_id, const ImVec4& col, ImGuiColorEditFl
         else
             window->DrawList->AddRectFilled(bb_inner.Min, bb_inner.Max, GetColorU32(col_source), rounding);
     }
-    RenderNavHighlight(bb, id);
+    RenderNavCursor(bb, id);
     if ((flags & ImGuiColorEditFlags_NoBorder) == 0)
     {
         if (g.Style.FrameBorderSize > 0.0f)
@@ -6627,7 +6628,7 @@ bool ImGui::TreeNodeBehavior(ImGuiID id, ImGuiTreeNodeFlags flags, const char* l
             if ((flags & ImGuiTreeNodeFlags_OpenOnMask_) == 0 || (g.NavActivateId == id && !is_multi_select))
                 toggled = true; // Single click
             if (flags & ImGuiTreeNodeFlags_OpenOnArrow)
-                toggled |= is_mouse_x_over_arrow && !g.NavDisableMouseHover; // Lightweight equivalent of IsMouseHoveringRect() since ButtonBehavior() already did the job
+                toggled |= is_mouse_x_over_arrow && !g.NavHighlightItemUnderNav; // Lightweight equivalent of IsMouseHoveringRect() since ButtonBehavior() already did the job
             if ((flags & ImGuiTreeNodeFlags_OpenOnDoubleClick) && g.IO.MouseClickedCount[0] == 2)
                 toggled = true; // Double click
         }
@@ -6676,15 +6677,15 @@ bool ImGui::TreeNodeBehavior(ImGuiID id, ImGuiTreeNodeFlags flags, const char* l
     // Render
     {
         const ImU32 text_col = GetColorU32(ImGuiCol_Text);
-        ImGuiNavHighlightFlags nav_highlight_flags = ImGuiNavHighlightFlags_Compact;
+        ImGuiNavRenderCursorFlags nav_render_cursor_flags = ImGuiNavRenderCursorFlags_Compact;
         if (is_multi_select)
-            nav_highlight_flags |= ImGuiNavHighlightFlags_AlwaysDraw; // Always show the nav rectangle
+            nav_render_cursor_flags |= ImGuiNavRenderCursorFlags_AlwaysDraw; // Always show the nav rectangle
         if (display_frame)
         {
             // Framed type
             const ImU32 bg_col = GetColorU32((held && hovered) ? ImGuiCol_HeaderActive : hovered ? ImGuiCol_HeaderHovered : ImGuiCol_Header);
             RenderFrame(frame_bb.Min, frame_bb.Max, bg_col, true, style.FrameRounding);
-            RenderNavHighlight(frame_bb, id, nav_highlight_flags);
+            RenderNavCursor(frame_bb, id, nav_render_cursor_flags);
             if (flags & ImGuiTreeNodeFlags_Bullet)
                 RenderBullet(window->DrawList, ImVec2(text_pos.x - text_offset_x * 0.60f, text_pos.y + g.FontSize * 0.5f), text_col);
             else if (!is_leaf)
@@ -6704,7 +6705,7 @@ bool ImGui::TreeNodeBehavior(ImGuiID id, ImGuiTreeNodeFlags flags, const char* l
                 const ImU32 bg_col = GetColorU32((held && hovered) ? ImGuiCol_HeaderActive : hovered ? ImGuiCol_HeaderHovered : ImGuiCol_Header);
                 RenderFrame(frame_bb.Min, frame_bb.Max, bg_col, false);
             }
-            RenderNavHighlight(frame_bb, id, nav_highlight_flags);
+            RenderNavCursor(frame_bb, id, nav_render_cursor_flags);
             if (flags & ImGuiTreeNodeFlags_Bullet)
                 RenderBullet(window->DrawList, ImVec2(text_pos.x - text_offset_x * 0.5f, text_pos.y + g.FontSize * 0.5f), text_col);
             else if (!is_leaf)
@@ -6994,13 +6995,14 @@ bool ImGui::Selectable(const char* label, bool selected, ImGuiSelectableFlags fl
                 selected = pressed = true;
     }
 
-    // Update NavId when clicking or when Hovering (this doesn't happen on most widgets), so navigation can be resumed with gamepad/keyboard
+    // Update NavId when clicking or when Hovering (this doesn't happen on most widgets), so navigation can be resumed with keyboard/gamepad
     if (pressed || (hovered && (flags & ImGuiSelectableFlags_SetNavIdOnHover)))
     {
-        if (!g.NavDisableMouseHover && g.NavWindow == window && g.NavLayer == window->DC.NavLayerCurrent)
+        if (!g.NavHighlightItemUnderNav && g.NavWindow == window && g.NavLayer == window->DC.NavLayerCurrent)
         {
             SetNavID(id, window->DC.NavLayerCurrent, g.CurrentFocusScopeId, WindowRectAbsToRel(window, bb)); // (bb == NavRect)
-            g.NavDisableHighlight = true;
+            if (g.IO.ConfigNavCursorVisibleAuto)
+                g.NavCursorVisible = false;
         }
     }
     if (pressed)
@@ -7025,10 +7027,10 @@ bool ImGui::Selectable(const char* label, bool selected, ImGuiSelectableFlags fl
         }
         if (g.NavId == id)
         {
-            ImGuiNavHighlightFlags nav_highlight_flags = ImGuiNavHighlightFlags_Compact | ImGuiNavHighlightFlags_NoRounding;
+            ImGuiNavRenderCursorFlags nav_render_cursor_flags = ImGuiNavRenderCursorFlags_Compact | ImGuiNavRenderCursorFlags_NoRounding;
             if (is_multi_select)
-                nav_highlight_flags |= ImGuiNavHighlightFlags_AlwaysDraw; // Always show the nav rectangle
-            RenderNavHighlight(bb, id, nav_highlight_flags);
+                nav_render_cursor_flags |= ImGuiNavRenderCursorFlags_AlwaysDraw; // Always show the nav rectangle
+            RenderNavCursor(bb, id, nav_render_cursor_flags);
         }
     }
 
@@ -7199,7 +7201,7 @@ int ImGui::TypingSelectFindMatch(ImGuiTypingSelectRequest* req, int items_count,
     else
         idx = TypingSelectFindBestLeadingMatch(req, items_count, get_item_name_func, user_data);
     if (idx != -1)
-        NavRestoreHighlightAfterMove();
+        SetNavCursorVisibleAfterMove();
     return idx;
 }
 
@@ -7398,7 +7400,7 @@ void ImGui::EndBoxSelect(const ImRect& scope_rect, ImGuiMultiSelectFlags ms_flag
     ImRect box_select_r = bs->BoxSelectRectCurr;
     box_select_r.ClipWith(scope_rect);
     window->DrawList->AddRectFilled(box_select_r.Min, box_select_r.Max, GetColorU32(ImGuiCol_SeparatorHovered, 0.30f)); // FIXME-MULTISELECT: Styling
-    window->DrawList->AddRect(box_select_r.Min, box_select_r.Max, GetColorU32(ImGuiCol_NavHighlight)); // FIXME-MULTISELECT: Styling
+    window->DrawList->AddRect(box_select_r.Min, box_select_r.Max, GetColorU32(ImGuiCol_NavCursor)); // FIXME-MULTISELECT: Styling
 
     // Scroll
     const bool enable_scroll = (ms_flags & ImGuiMultiSelectFlags_ScopeWindow) && (ms_flags & ImGuiMultiSelectFlags_BoxSelectNoScroll) == 0;
@@ -8623,8 +8625,13 @@ void ImGui::EndMenuBar()
             IM_ASSERT(window->DC.NavLayersActiveMaskNext & (1 << layer)); // Sanity check (FIXME: Seems unnecessary)
             FocusWindow(window);
             SetNavID(window->NavLastIds[layer], layer, 0, window->NavRectRel[layer]);
-            g.NavDisableHighlight = true; // Hide highlight for the current frame so we don't see the intermediary selection.
-            g.NavDisableMouseHover = g.NavMousePosDirty = true;
+            // FIXME-NAV: How to deal with this when not using g.IO.ConfigNavCursorVisibleAuto?
+            if (g.NavCursorVisible)
+            {
+                g.NavCursorVisible = false; // Hide nav cursor for the current frame so we don't see the intermediary selection. Will be set again
+                g.NavCursorHideFrames = 2;
+            }
+            g.NavHighlightItemUnderNav = g.NavMousePosDirty = true;
             NavMoveRequestForward(g.NavMoveDir, g.NavMoveClipDir, g.NavMoveFlags, g.NavMoveScrollFlags); // Repeat
         }
     }
@@ -8832,7 +8839,7 @@ bool ImGui::BeginMenuEx(const char* label, const char* icon, bool enabled)
     if (!enabled)
         EndDisabled();
 
-    const bool hovered = (g.HoveredId == id) && enabled && !g.NavDisableMouseHover;
+    const bool hovered = (g.HoveredId == id) && enabled && !g.NavHighlightItemUnderNav;
     if (menuset_is_open)
         PopItemFlag();
 
@@ -8867,7 +8874,7 @@ bool ImGui::BeginMenuEx(const char* label, const char* icon, bool enabled)
         // The 'HovereWindow == window' check creates an inconsistency (e.g. moving away from menu slowly tends to hit same window, whereas moving away fast does not)
         // But we also need to not close the top-menu menu when moving over void. Perhaps we should extend the triangle check to a larger polygon.
         // (Remember to test this on BeginPopup("A")->BeginMenu("B") sequence which behaves slightly differently as B isn't a Child of A and hovering isn't shared.)
-        if (menu_is_open && !hovered && g.HoveredWindow == window && !moving_toward_child_menu && !g.NavDisableMouseHover && g.ActiveId == 0)
+        if (menu_is_open && !hovered && g.HoveredWindow == window && !moving_toward_child_menu && !g.NavHighlightItemUnderNav && g.ActiveId == 0)
             want_close = true;
 
         // Open
@@ -8882,7 +8889,7 @@ bool ImGui::BeginMenuEx(const char* label, const char* icon, bool enabled)
         {
             want_open = want_open_nav_init = true;
             NavMoveRequestCancel();
-            NavRestoreHighlightAfterMove();
+            SetNavCursorVisibleAfterMove();
         }
     }
     else
@@ -10108,7 +10115,7 @@ bool    ImGui::TabItemEx(ImGuiTabBar* tab_bar, const char* label, bool* p_open, 
         float y_offset = 1.0f * g.CurrentDpiScale;
         display_draw_list->AddLine(bb.GetTL() + ImVec2(x_offset, y_offset), bb.GetTR() + ImVec2(-x_offset, y_offset), GetColorU32(tab_bar_focused ? ImGuiCol_TabSelectedOverline : ImGuiCol_TabDimmedSelectedOverline), style.TabBarOverlineSize);
     }
-    RenderNavHighlight(bb, id);
+    RenderNavCursor(bb, id);
 
     // Select with right mouse button. This is so the common idiom for context menu automatically highlight the current widget.
     const bool hovered_unblocked = IsItemHovered(ImGuiHoveredFlags_AllowWhenBlockedByPopup);
