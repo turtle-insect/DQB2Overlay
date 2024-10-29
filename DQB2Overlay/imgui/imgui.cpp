@@ -3637,7 +3637,7 @@ void ImGui::RenderTextEllipsis(ImDrawList* draw_list, const ImVec2& pos_min, con
         // min   max   ellipsis_max
         //          <-> this is generally some padding value
 
-        const ImFont* font = draw_list->_Data->Font;
+        ImFont* font = draw_list->_Data->Font;
         const float font_size = draw_list->_Data->FontSize;
         const float font_scale = draw_list->_Data->FontScale;
         const char* text_end_ellipsis = NULL;
@@ -4746,6 +4746,13 @@ ImGuiIO& ImGui::GetIO()
 {
     IM_ASSERT(GImGui != NULL && "No current context. Did you call ImGui::CreateContext() and ImGui::SetCurrentContext() ?");
     return GImGui->IO;
+}
+
+// This variant exists to facilitate backends experimenting with multi-threaded parallel context. (#8069, #6293, #5856)
+ImGuiIO& ImGui::GetIOEx(ImGuiContext* ctx)
+{
+    IM_ASSERT(ctx != NULL);
+    return ctx->IO;
 }
 
 ImGuiPlatformIO& ImGui::GetPlatformIO()
