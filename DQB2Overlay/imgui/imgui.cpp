@@ -1,4 +1,4 @@
-// dear imgui, v1.91.5
+// dear imgui, v1.91.6 WIP
 // (main code and documentation)
 
 // Help:
@@ -4010,7 +4010,7 @@ ImGuiContext::ImGuiContext(ImFontAtlas* shared_font_atlas)
     StackSizesInBeginForCurrentWindow = NULL;
 
     DebugDrawIdConflictsCount = 0;
-    DebugLogFlags = ImGuiDebugLogFlags_EventError | ImGuiDebugLogFlags_OutputToTTY;
+    DebugLogFlags = ImGuiDebugLogFlags_EventError | ImGuiDebugLogFlags_OutputToTTY | ImGuiDebugLogFlags_EventFont;
     DebugLocateId = 0;
     DebugLogSkippedErrors = 0;
     DebugLogAutoDisableFlags = ImGuiDebugLogFlags_None;
@@ -4226,8 +4226,8 @@ ImGuiWindow::ImGuiWindow(ImGuiContext* ctx, const char* name) : DrawListInst(NUL
     FontWindowScale = 1.0f;
     SettingsOffset = -1;
     DrawList = &DrawListInst;
-    DrawList->_Data = &Ctx->DrawListSharedData;
     DrawList->_OwnerName = Name;
+    DrawList->_Data = &Ctx->DrawListSharedData;
     NavPreferredScoringPosRel[0] = NavPreferredScoringPosRel[1] = ImVec2(FLT_MAX, FLT_MAX);
 }
 
@@ -5025,7 +5025,7 @@ void ImGui::UpdateHoveredWindowAndCaptureFlags()
     io.WantTextInput = (g.WantTextInputNextFrame != -1) ? (g.WantTextInputNextFrame != 0) : false;
 }
 
-// Calling SetupDrawListSharedData() is followed by SetCurrentFont() which sets up the remaining data.
+// Called once a frame. Followed by SetCurrentFont() which sets up the remaining data.
 static void SetupDrawListSharedData()
 {
     ImGuiContext& g = *GImGui;
@@ -5788,7 +5788,7 @@ bool ImGui::IsItemDeactivatedAfterEdit()
     return IsItemDeactivated() && (g.ActiveIdPreviousFrameHasBeenEditedBefore || (g.ActiveId == 0 && g.ActiveIdHasBeenEditedBefore));
 }
 
-// == GetItemID() == GetFocusID()
+// == (GetItemID() == GetFocusID() && GetFocusID() != 0)
 bool ImGui::IsItemFocused()
 {
     ImGuiContext& g = *GImGui;
@@ -10542,7 +10542,7 @@ bool    ImGui::ErrorLog(const char* msg)
     // Output to tooltip
     if (g.IO.ConfigErrorRecoveryEnableTooltip)
     {
-        if (BeginErrorTooltip())
+        if (g.WithinFrameScope && BeginErrorTooltip())
         {
             if (g.ErrorCountCurrentFrame < 20)
             {
@@ -10579,7 +10579,7 @@ void ImGui::ErrorCheckEndFrameFinalizeErrorTooltip()
         BulletText("Code should use PushID()/PopID() in loops, or append \"##xx\" to same-label identifiers!");
         BulletText("Empty label e.g. Button(\"\") == same ID as parent widget/node. Use Button(\"##xx\") instead!");
         //BulletText("Code intending to use duplicate ID may use e.g. PushItemFlag(ImGuiItemFlags_AllowDuplicateId, true); ... PopItemFlag()"); // Not making this too visible for fear of it being abused.
-        BulletText("Set io.ConfigDebugDetectIdConflicts=false to disable this warning in non-programmers builds.");
+        BulletText("Set io.ConfigDebugHighlightIdConflicts=false to disable this warning in non-programmers builds.");
         Separator();
         Text("(Hold CTRL to: use");
         SameLine();
@@ -15180,6 +15180,17 @@ void ImGui::UpdateDebugToolFlashStyleColor()
         DebugFlashStyleColorStop();
 }
 
+static const char* FormatTextureIDForDebugDisplay(char* buf, int buf_size, ImTextureID tex_id)
+{
+    union { void* ptr; int integer; } tex_id_opaque;
+    memcpy(&tex_id_opaque, &tex_id, ImMin(sizeof(void*), sizeof(tex_id)));
+    if (sizeof(tex_id) >= sizeof(void*))
+        ImFormatString(buf, buf_size, "0x%p", tex_id_opaque.ptr);
+    else
+        ImFormatString(buf, buf_size, "0x%04X", tex_id_opaque.integer);
+    return buf;
+}
+
 // Avoid naming collision with imgui_demo.cpp's HelpMarker() for unity builds.
 static void MetricsHelpMarker(const char* desc)
 {
@@ -15868,16 +15879,6 @@ void ImGui::DebugNodeColumns(ImGuiOldColumns* columns)
     TreePop();
 }
 
-static void FormatTextureIDForDebugDisplay(char* buf, int buf_size, ImTextureID tex_id)
-{
-    union { void* ptr; int integer; } tex_id_opaque;
-    memcpy(&tex_id_opaque, &tex_id, ImMin(sizeof(void*), sizeof(tex_id)));
-    if (sizeof(tex_id) >= sizeof(void*))
-        ImFormatString(buf, buf_size, "0x%p", tex_id_opaque.ptr);
-    else
-        ImFormatString(buf, buf_size, "0x%04X", tex_id_opaque.integer);
-}
-
 // [DEBUG] Display contents of ImDrawList
 void ImGui::DebugNodeDrawList(ImGuiWindow* window, ImGuiViewportP* viewport, const ImDrawList* draw_list, const char* label)
 {
@@ -16379,6 +16380,7 @@ void ImGui::ShowDebugLogWindow(bool* p_open)
     ShowDebugLogFlag("Clipper", ImGuiDebugLogFlags_EventClipper);
     ShowDebugLogFlag("Focus", ImGuiDebugLogFlags_EventFocus);
     ShowDebugLogFlag("IO", ImGuiDebugLogFlags_EventIO);
+    //ShowDebugLogFlag("Font", ImGuiDebugLogFlags_EventFont);
     ShowDebugLogFlag("Nav", ImGuiDebugLogFlags_EventNav);
     ShowDebugLogFlag("Popup", ImGuiDebugLogFlags_EventPopup);
     ShowDebugLogFlag("Selection", ImGuiDebugLogFlags_EventSelection);
