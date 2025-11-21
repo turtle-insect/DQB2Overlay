@@ -6,14 +6,14 @@ Steam Dragon Quest Builders 2 Overlay Menu
 <img src="https://user-images.githubusercontent.com/30800900/195995412-1ebe458c-03bc-4832-9510-23b98d83da2b.png">
 
 # OS
-* Windows 10
+* Windows 11
 
 # Soft
 * https://store.steampowered.com/app/1072420
 
 # Build
-* Windows 10(64bit)
-* [Visual Studio 2022](https://visualstudio.microsoft.com/)
+* Windows 11(64bit)
+* [Visual Studio 2026](https://visualstudio.microsoft.com/)
 
 # Description
 ## Set up only once for the first time
