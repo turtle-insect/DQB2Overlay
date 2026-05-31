@@ -3,6 +3,6 @@
     <Platform Name="x64" />
     <Platform Name="x86" />
   </Configurations>
-  <Project Path="DLLInjection/DLLInjection.vcxproj" />
-  <Project Path="DQB2Overlay/DQB2Overlay.vcxproj" />
+  <Project Path="DLLInjection/DLLInjection.vcxproj" Id="ab09dedd-a941-4c66-a0d6-17403901e0a1" />
+  <Project Path="DQB2Overlay/DQB2Overlay.vcxproj" Id="2409e5de-7ecf-4912-adab-76ad83efba65" />
 </Solution>
