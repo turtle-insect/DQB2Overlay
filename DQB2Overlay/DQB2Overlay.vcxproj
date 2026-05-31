@@ -19,9 +19,6 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
-    <ResourceCompile Include="kiero\minhook\dll_resources\MinHook.rc" />
-  </ItemGroup>
-  <ItemGroup>
     <ClCompile Include="dqb2\blueprint.cpp" />
     <ClCompile Include="dqb2\dqb2.cpp" />
     <ClCompile Include="dqb2\input.cpp" />
@@ -66,9 +63,6 @@
     <ClInclude Include="kiero\minhook\src\hde\table32.h" />
     <ClInclude Include="kiero\minhook\src\hde\table64.h" />
     <ClInclude Include="kiero\minhook\src\trampoline.h" />
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="kiero\minhook\dll_resources\MinHook.def" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>18.0</VCProjectVersion>

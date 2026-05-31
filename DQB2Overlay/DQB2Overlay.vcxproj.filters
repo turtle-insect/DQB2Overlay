@@ -24,11 +24,6 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ResourceCompile Include="kiero\minhook\dll_resources\MinHook.rc">
-      <Filter>リソース ファイル</Filter>
-    </ResourceCompile>
-  </ItemGroup>
-  <ItemGroup>
     <ClCompile Include="dqb2\blueprint.cpp">
       <Filter>ソース ファイル\dqb2</Filter>
     </ClCompile>
@@ -157,10 +152,5 @@
     <ClInclude Include="kiero\minhook\src\hde\table64.h">
       <Filter>ソース ファイル\kiero</Filter>
     </ClInclude>
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="kiero\minhook\dll_resources\MinHook.def">
-      <Filter>ソース ファイル\kiero</Filter>
-    </None>
   </ItemGroup>
 </Project>
