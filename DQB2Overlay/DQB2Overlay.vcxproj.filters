@@ -14,16 +14,24 @@
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
     <Filter Include="ソース ファイル\dqb2">
-      <UniqueIdentifier>{888d770d-d56d-4a44-81b8-67961aab060c}</UniqueIdentifier>
+      <UniqueIdentifier>{62949466-58a8-4e4e-adb9-c0f6bcd39186}</UniqueIdentifier>
     </Filter>
     <Filter Include="ソース ファイル\imgui">
-      <UniqueIdentifier>{a67a683f-9450-4697-98a5-03b49e8d726f}</UniqueIdentifier>
+      <UniqueIdentifier>{69ecfc7c-b019-4021-af38-7c02736dee41}</UniqueIdentifier>
     </Filter>
     <Filter Include="ソース ファイル\kiero">
-      <UniqueIdentifier>{fc53e87d-f12e-49ae-a268-097371700425}</UniqueIdentifier>
+      <UniqueIdentifier>{7a2f78bd-1e46-4d51-9403-3cb4149f3bbb}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
+    <ResourceCompile Include="kiero\minhook\dll_resources\MinHook.rc">
+      <Filter>リソース ファイル</Filter>
+    </ResourceCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="dllmain.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
     <ClCompile Include="dqb2\blueprint.cpp">
       <Filter>ソース ファイル\dqb2</Filter>
     </ClCompile>
