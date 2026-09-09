@@ -84,10 +84,9 @@ void DQBMenu::LoadDevice(HWND hwnd, ID3D11Device* pDevice)
 	m_pDevice = pDevice;
 	m_pDevice->GetImmediateContext(&m_pContext);
 
-	ImGui::CreateContext();
 	ImGuiIO& io = ImGui::GetIO();
 	io.AddKeyEvent(ImGuiKey_GamepadFaceDown, true);
-	ImFont* font = io.Fonts->AddFontFromFileTTF("c:\\Windows\\Fonts\\meiryo.ttc", 36.0f);
+	io.Fonts->AddFontFromFileTTF("c:\\Windows\\Fonts\\meiryo.ttc", 36.0f);
 	ImGui_ImplWin32_Init(hwnd);
 	ImGui_ImplDX11_Init(m_pDevice, m_pContext);
 }
